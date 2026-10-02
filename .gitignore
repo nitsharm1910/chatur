@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Chatur runtime state when dogfooding locally
+.chatur/audit/
+apm_modules/
+
+.env
+.env.*
+.DS_Store
+Thumbs.db
