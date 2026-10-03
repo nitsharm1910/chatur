@@ -20,6 +20,6 @@ Details: [docs/architecture.md](docs/architecture.md) · Decisions: [docs/decisi
 ## Planned usage (target project)
 ```bash
 pipx install chatur
-apm install <owner>/chatur
+apm install nitsharm1910/chatur
 chatur init --profile standard --assistants claude,copilot
 ```

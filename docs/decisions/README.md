@@ -13,7 +13,7 @@
 | [0009](0009-v1-targets-claude-copilot.md) | v1 targets: Claude Code + Copilot | Accepted |
 | [0010](0010-agent-roster.md) | SDLC agent roster (9 agents) | Accepted |
 | [0011](0011-distribution.md) | Distribution: APM package + pip core | Accepted |
-| [0012](0012-python-311-stdlib-hook-path.md) | Python ≥3.11, TOML, stdlib-only hook path | Accepted |
+| [0012](0012-python-311-stdlib-hook-path.md) | Python ≥3.11 (CI to latest), TOML, stdlib-only hook path | Accepted |
 | [0013](0013-license-apache-2.md) | License under Apache-2.0 | Accepted |
 | [0014](0014-human-in-the-loop-baseline.md) | Human-in-the-loop baseline: git deny, file/exec ask (amends 0007) | Accepted |
 

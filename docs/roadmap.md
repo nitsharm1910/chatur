@@ -2,15 +2,17 @@
 
 Legend: ✅ done · 🔄 in progress · ⏳ planned
 
-## Phase 0 — Foundation 🔄
-- ✅ Repo skeleton, git init
+## Phase 0 — Foundation ✅
+- ✅ Repo skeleton, git init, pushed to `nitsharm1910/chatur`
 - ✅ AGENTS.md / CLAUDE.md for developing Chatur
 - ✅ Architecture draft ([architecture.md](architecture.md))
-- ✅ ADR-0001…0011 accepted, ADR-0012 proposed
-- ⏳ `apm.yml`, `pyproject.toml`, `.gitignore`, LICENSE
-- ⏳ Maintainer review of architecture + ADR-0012
+- ✅ ADR-0001…0014 accepted
+- ✅ `.gitignore`, LICENSE (Apache-2.0), draft `policies/baseline.toml`
 
-## Phase 1 — Python core (no assistant yet)
+## Phase 1 — Python core (no assistant yet) 🔄
+- ✅ 1.1 `pyproject.toml`, `apm.yml`, package layout, CLI stub, pytest + ruff, CI matrix (3.11→3.14 + 3.15 pre-release, 3 OSes)
+- ⏳ 1.2 ChaturEvent + Verdict models
+- ⏳ 1.3 Policy loader · 1.4 Guard engine + bypass suite · 1.5 Audit log · 1.6 Gates · 1.7 `adr`/`init` · 1.8 Latency benchmark
 - `ChaturEvent`, `Verdict` models
 - Policy loader (TOML, profiles, baseline-not-weakenable)
 - Guard engine + baseline rules (secrets, destructive shell, protected paths)
@@ -43,8 +45,8 @@ Legend: ✅ done · 🔄 in progress · ⏳ planned
 - Codex, Gemini, Cursor adapters · SDK runner for CI/headless · external exporters (GitHub Issues/Jira)
 
 ## Open questions
-1. ADR-0012: accept 3.11 floor (3.14 dev, 3.11–3.14 CI matrix)? Maintainer asked "why not 3.14"; rationale added to ADR.
-2. Package/CLI name on PyPI: is `chatur` free? Fallback `chatur-harness`.
+1. ~~Python floor~~: ADR-0012 accepted (3.11 floor, CI through latest + next pre-release).
+2. ~~PyPI name~~: `chatur` is unclaimed (checked 2026-10-02); reserve on first release.
 3. ~~License~~: Apache-2.0 (ADR-0013).
-4. GitHub owner/org for `apm install <owner>/chatur`: deferred, placeholder `<owner>`.
+4. ~~GitHub owner~~: `nitsharm1910/chatur`.
 5. Should the audit log be committed by default in `standard` profile?

@@ -12,7 +12,7 @@ tags: [distribution, release]
 
 ## Decision
 A single GitHub repository is both:
-- the **APM package** (`apm.yml` + `.apm/`), installed with `apm install <owner>/chatur#vX.Y.Z`, and
+- the **APM package** (`apm.yml` + `.apm/`), installed with `apm install nitsharm1910/chatur#vX.Y.Z`, and
 - the **Python core** (`pyproject.toml`, `src/chatur`), installed with `pipx install chatur` (or from git).
 
 Both share one semver version and git tag. `chatur init` in a target writes `.chatur/config.toml`,

@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "chatur"
+dynamic = ["version"]
+description = "Portable, multi-assistant AI harness for the full SDLC: agents, hooks, guardrails, gates, and audit."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Nitin" }]
+requires-python = ">=3.11"   # ADR-0012: floor only, no upper cap
+dependencies = []            # ADR-0012: stdlib-only runtime
+keywords = ["ai", "agents", "harness", "sdlc", "guardrails", "claude-code", "copilot", "apm"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Software Development :: Quality Assurance",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+chatur = "chatur.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/nitsharm1910/chatur"
+Issues = "https://github.com/nitsharm1910/chatur/issues"
+
+[tool.hatch.version]
+path = "src/chatur/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/chatur"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"     # ADR-0012: flag syntax newer than the floor
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "PTH", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]        # asserts are fine in tests

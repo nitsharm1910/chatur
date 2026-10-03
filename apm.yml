@@ -1,0 +1,9 @@
+# APM package manifest (ADR-0003). Version MUST equal chatur.__version__ (ADR-0011; enforced by tests).
+name: chatur
+version: 0.1.0
+description: Portable, multi-assistant AI harness for the full SDLC (agents, hooks, guardrails, gates, audit).
+author: Nitin
+license: Apache-2.0
+dependencies:
+  apm: []
+  mcp: []

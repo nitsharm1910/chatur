@@ -24,7 +24,7 @@ policy (`apm-policy.yml`), and `apm audit`.
 
 ## Decision
 We will author distributable primitives under `.apm/` (instructions, agents, prompts, skills,
-hooks) with an `apm.yml` manifest, so `apm install <owner>/chatur` deploys Chatur into a target.
+hooks) with an `apm.yml` manifest, so `apm install nitsharm1910/chatur` deploys Chatur into a target.
 
 ## Consequences
 - Positive: we get multi-target deployment, version pinning, and integrity hashes for free.
