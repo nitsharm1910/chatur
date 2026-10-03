@@ -1,0 +1,26 @@
+# Chatur "relaxed" profile. ADR-0007 table, column "relaxed".
+# Baseline rules (baseline.toml) still apply in full: git deny, file/exec ask (ADR-0014).
+
+schema = "chatur.policy/v1"
+kind = "profile"
+name = "relaxed"
+description = "Prototyping: process rules off; protected config warns; baseline still enforced."
+
+[[rule]]
+id = "fs.protected-paths"
+adr = "ADR-0007"
+applies_to = { tool_category = ["file_write", "shell"] }
+match.path_globs = [
+  ".chatur/config.toml", ".chatur/policy.local.toml", ".github/workflows/**", ".github/hooks/**",
+  ".claude/settings.json", ".claude/settings.local.json", ".apm/hooks/**", "apm.yml", "apm-policy.yml",
+]
+verdict = "warn"
+reason = "Protected configuration path: changes affect guardrails or CI."
+
+[[rule]]
+id = "net.web-tools"
+adr = "ADR-0007"
+applies_to = { tool_category = ["web"] }
+match.any = true
+verdict = "log"
+reason = "Network access is logged."

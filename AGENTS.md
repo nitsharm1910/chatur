@@ -20,7 +20,7 @@ Read before changing anything:
 | `.apm/` | **Distributable primitives** — what target projects receive (agents, prompts, skills, instructions, hooks) |
 | `src/chatur/` | Python core: event normalization, guard engine, audit log, gates, ADR tooling, CLI |
 | `src/chatur/adapters/` | One module per assistant; translates native hook payloads ⇄ `ChaturEvent` |
-| `policies/` | Guardrail profiles: `strict`, `standard`, `relaxed` |
+| `src/chatur/policies/` | Guardrail policy: `baseline` + profiles `strict`, `standard`, `relaxed` (shipped in the wheel; ADR-0016) |
 | `templates/` | Artifact templates installed into targets (ADR, PRD, test plan, threat model, release notes) |
 | `docs/decisions/` | ADRs for Chatur's own design |
 | `docs/journal/` | Dated work journal — what was done, why, what's next |

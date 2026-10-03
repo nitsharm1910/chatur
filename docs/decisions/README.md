@@ -16,5 +16,7 @@
 | [0012](0012-python-311-stdlib-hook-path.md) | Python ≥3.11 (CI to latest), TOML, stdlib-only hook path | Accepted |
 | [0013](0013-license-apache-2.md) | License under Apache-2.0 | Accepted |
 | [0014](0014-human-in-the-loop-baseline.md) | Human-in-the-loop baseline: git deny, file/exec ask (amends 0007) | Accepted |
+| [0015](0015-audit-full-commands-masked.md) | Audit stores full commands, secrets masked (refines 0006) | Accepted |
+| [0016](0016-policy-schema-and-composition.md) | Policy schema v1, tighten-only composition | **Proposed** (tighten-only accepted) |
 
 New decision: copy [0000-template.md](0000-template.md), use the next number, status `Proposed`.

@@ -49,18 +49,26 @@ assistant hook fires ──stdin JSON──► chatur hook <assistant> <event>
                         adapters/<assistant>.render(verdict) ──stdout/exit code──► assistant
 ```
 
-### ChaturEvent (normalized; draft)
+### ChaturEvent (normalized; implemented in [`src/chatur/events.py`](../src/chatur/events.py))
 | Field | Type | Notes |
 |-------|------|-------|
 | `schema` | str | `chatur.event/v1` |
-| `id`, `ts` | str | ULID-ish id, ISO-8601 UTC |
-| `assistant` | str | `claude_code`, `copilot`, … |
-| `session_id` | str | from assistant |
+| `id`, `ts` | str | time-ordered id (12 hex ms + 16 hex random), ISO-8601 UTC with `Z` |
 | `kind` | enum | `session_start`, `prompt`, `pre_tool`, `post_tool`, `tool_failure`, `stop`, `subagent_start`, `subagent_stop`, `session_end`, `error` |
-| `tool` | obj? | `{category: shell\|file_read\|file_write\|search\|web\|agent\|other, name, args}` |
-| `phase` | str | current SDLC phase from `.chatur/state.json` |
-| `cwd` | str | |
-| `raw` | obj | original payload (redacted) for debugging |
+| `assistant` | str | adapter id: `claude_code`, `copilot`, … |
+| `session_id`, `cwd` | str | from assistant |
+| `tool` | ToolCall? | `{category: shell\|file_read\|file_write\|search\|web\|agent\|mcp\|other, name, args, command, paths}` |
+| `prompt` | str? | user prompt text (`prompt` events) |
+| `agent` | str? | active subagent/custom agent when exposed (ADR-0010 write scopes) |
+| `phase` | str? | current SDLC phase from `.chatur/state.json` |
+| `attended` | bool | `false` only when no human can answer → `ask` becomes `deny` (ADR-0014) |
+| `raw` | obj | original native payload |
+
+Events are immutable. `to_dict()` masks secrets by default (ADR-0015); the guard engine always sees unmasked values.
+
+### Verdict ([`src/chatur/verdict.py`](../src/chatur/verdict.py))
+`Decision`: `allow < log < warn < ask < deny`. A `Verdict` combines all matching `RuleHit`s;
+the **strictest wins**, and every hit is kept for the audit log.
 
 ### Native event mapping (v1)
 | ChaturEvent.kind | Claude Code | Copilot |
@@ -77,6 +85,16 @@ assistant hook fires ──stdin JSON──► chatur hook <assistant> <event>
 
 Deny rendering: Claude → JSON `hookSpecificOutput.permissionDecision: "deny"` (or exit 2);
 Copilot → JSON `permissionDecision: "deny"` + `permissionDecisionReason` (or exit 2).
+
+### Policy composition ([`src/chatur/policy.py`](../src/chatur/policy.py), ADR-0016)
+```
+baseline.toml  ──►  <profile>.toml  ──►  .chatur/policy.local.toml
+ (always; can't     (strict|standard|      (optional; add rules,
+  be weakened)       relaxed|custom)        tighten, extra redaction)
+```
+Each later layer can **add** rules and **tighten** existing ones, never loosen. Unknown keys,
+weaker verdicts, and redefined rules are load errors, and every problem is reported in one
+`PolicyError`. Inspect the result with `chatur policy show` and check it with `chatur policy validate`.
 
 ## 4. What gets installed into a target project
 ```

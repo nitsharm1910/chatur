@@ -1,31 +1,32 @@
-# Chatur baseline policy: applies to EVERY profile; cannot be weakened (ADR-0007, ADR-0014).
-# Schema: DRAFT v0 (finalized in Phase 1). Verdicts: allow | log | warn | ask | deny.
-# `unattended` = verdict when no human can answer a prompt (cloud agent, CI, headless runner).
+# Chatur baseline policy: loaded under EVERY profile; can't be weakened (ADR-0007, ADR-0014, ADR-0016).
+# Verdicts: allow < log < warn < ask < deny. `unattended` = verdict when no human can answer.
 
-schema = "chatur.policy/v0"
-name = "baseline"
+schema = "chatur.policy/v1"
+kind = "baseline"
+description = "Non-weakenable guardrails: human-in-the-loop git, files, and execution."
 
 [defaults]
 unknown_tool = "ask"          # tools Chatur can't classify
 unparseable_command = "ask"
-adapter_error = "deny"        # fail closed on pre-tool events
+adapter_error = "deny"        # fail closed on pre-tool events (ADR-0012)
 
 # ---------------- git ----------------
 [[rule]]
 id = "git.no-commit-push"
 adr = "ADR-0014"
 baseline = true
+critical = true
 layers = ["hook", "git", "ci"]
 applies_to = { tool_category = ["shell"] }
 match.git_subcommands = ["commit", "push", "commit-tree", "update-ref", "merge", "cherry-pick", "revert", "am"]
 verdict = "deny"
-unattended = "deny"
 reason = "AI may not commit or push on any branch. A human must run this themselves."
 
 [[rule]]
 id = "git.no-history-rewrite"
 adr = "ADR-0014"
 baseline = true
+critical = true
 layers = ["hook", "ci"]
 applies_to = { tool_category = ["shell"] }
 match.git_subcommands = ["rebase", "filter-branch", "filter-repo", "tag", "clean", "restore", "reflog"]
@@ -34,22 +35,31 @@ match.git_patterns = [
   'checkout\s+.*--\s', 'gc\s+.*--prune',
 ]
 verdict = "deny"
-unattended = "deny"
 reason = "History/ref-rewriting git operations are reserved for humans."
 
 [[rule]]
 id = "git.remote-tools"
 adr = "ADR-0014"
 baseline = true
-layers = ["hook"]
 applies_to = { tool_category = ["mcp", "other"] }
 match.tool_name_patterns = [
   '(?i)push_files', '(?i)create_or_update_file', '(?i)merge_pull_request',
   '(?i)create_branch', '(?i)delete_branch', '(?i)create_tag', '(?i)delete_file',
 ]
 verdict = "deny"
-unattended = "deny"
 reason = "Remote repository writes via tools are reserved for humans."
+
+# ---------------- gate state & audit (ADR-0006, ADR-0008) ----------------
+[[rule]]
+id = "gate.state-protected"
+adr = "ADR-0008"
+baseline = true
+critical = true
+layers = ["hook", "git", "ci"]
+applies_to = { tool_category = ["file_write", "shell"] }
+match.path_globs = [".chatur/state.json", ".chatur/audit/**"]
+verdict = "deny"
+reason = "Gate state and the audit log are written only by the chatur CLI under human control."
 
 # ---------------- files ----------------
 [[rule]]
@@ -65,7 +75,6 @@ match.shell_patterns = [
   '\bgit\s+(.*\s)?(rm|mv)\b', '\bsed\s+(.*\s)?-i', '>{1,2}',
 ]
 verdict = "ask"
-unattended = "deny"
 reason = "File change/delete requires human approval."
 
 # ---------------- execution ----------------
@@ -73,11 +82,9 @@ reason = "File change/delete requires human approval."
 id = "exec.needs-approval"
 adr = "ADR-0014"
 baseline = true
-layers = ["hook"]
 applies_to = { tool_category = ["shell"] }
 match.any = true                   # every shell command
 verdict = "ask"
-unattended = "deny"
 reason = "Running commands/executables requires human approval."
 
 [[rule]]
@@ -90,10 +97,9 @@ match.path_globs = ["**/*.sh", "**/*.ps1", "**/*.psm1", "**/*.bat", "**/*.cmd", 
 match.shell_patterns = ['\bchmod\s+(.*\s)?\+?[0-7]*x', '\bicacls\b']
 match.shebang = true
 verdict = "ask"
-unattended = "deny"
 reason = "Creating/modifying an executable requires human approval."
 
-# Opt-in only via a superseding ADR (ADR-0014). Disabled by default.
-[exec.readonly_allowlist]
+# Opt-in only by editing THIS file via a superseding ADR (ADR-0014, ADR-0016). Disabled by default.
+[readonly_allowlist]
 enabled = false
 commands = ['^git\s+(status|log|diff|show)\b', '^(ls|dir|pwd|Get-ChildItem|Get-Location)\b']

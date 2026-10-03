@@ -1,0 +1,60 @@
+# Chatur "standard" profile (default). ADR-0007 table, column "standard".
+# Baseline rules (baseline.toml) always apply on top and can't be weakened here.
+
+schema = "chatur.policy/v1"
+kind = "profile"
+name = "standard"
+description = "Balanced: protected config needs approval; process gaps warn."
+
+[[rule]]
+id = "fs.protected-paths"
+adr = "ADR-0007"
+layers = ["hook", "ci"]
+applies_to = { tool_category = ["file_write", "shell"] }
+match.path_globs = [
+  ".chatur/config.toml", ".chatur/policy.local.toml", ".github/workflows/**", ".github/hooks/**",
+  ".claude/settings.json", ".claude/settings.local.json", ".apm/hooks/**", "apm.yml", "apm-policy.yml",
+]
+verdict = "ask"
+reason = "Protected configuration path: changes affect guardrails or CI."
+
+[[rule]]
+id = "gate.design-before-code"
+adr = "ADR-0008"
+layers = ["hook", "ci"]
+applies_to = { tool_category = ["file_write"] }
+match.path_globs = ["src/**", "lib/**", "app/**", "pkg/**", "cmd/**"]
+match.requires_gate = "design"
+verdict = "warn"
+reason = "Code change before the Design gate is approved."
+
+[[rule]]
+id = "test.missing-tests"
+adr = "ADR-0007"
+layers = ["hook", "git", "ci"]
+applies_to = { events = ["stop"] }
+match.missing_tests = true
+verdict = "warn"
+reason = "Source changed without corresponding test changes."
+
+[[rule]]
+id = "deps.needs-adr"
+adr = "ADR-0007"
+layers = ["hook", "git", "ci"]
+applies_to = { tool_category = ["file_write", "shell"] }
+match.path_globs = [
+  "pyproject.toml", "requirements*.txt", "package.json", "go.mod", "Cargo.toml", "pom.xml",
+  "build.gradle*", "Gemfile", "*.csproj",
+]
+match.shell_patterns = ['\b(pip|pip3|npm|pnpm|yarn|poetry|uv|cargo|go|dotnet|gem)\s+(install|add|get)\b']
+match.requires_adr = true
+verdict = "warn"
+reason = "Dependency change: record the decision in an ADR."
+
+[[rule]]
+id = "net.web-tools"
+adr = "ADR-0007"
+applies_to = { tool_category = ["web"] }
+match.any = true
+verdict = "log"
+reason = "Network access is logged."

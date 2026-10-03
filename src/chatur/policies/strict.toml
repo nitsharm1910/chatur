@@ -1,0 +1,67 @@
+# Chatur "strict" profile. ADR-0007 table, column "strict".
+# Baseline rules (baseline.toml) always apply on top and can't be weakened here.
+
+schema = "chatur.policy/v1"
+kind = "profile"
+name = "strict"
+description = "Regulated/production: process gaps block; unknown tools denied; web needs approval."
+
+[defaults]
+unknown_tool = "deny"
+
+[[rule]]
+id = "fs.protected-paths"
+adr = "ADR-0007"
+critical = true
+layers = ["hook", "ci"]
+applies_to = { tool_category = ["file_write", "shell"] }
+match.path_globs = [
+  ".chatur/config.toml", ".chatur/policy.local.toml", ".github/workflows/**", ".github/hooks/**",
+  ".claude/settings.json", ".claude/settings.local.json", ".apm/hooks/**", "apm.yml", "apm-policy.yml",
+]
+verdict = "deny"
+reason = "Protected configuration path: humans change this directly."
+
+[[rule]]
+id = "gate.design-before-code"
+adr = "ADR-0008"
+critical = true
+layers = ["hook", "ci"]
+applies_to = { tool_category = ["file_write"] }
+match.path_globs = ["src/**", "lib/**", "app/**", "pkg/**", "cmd/**"]
+match.requires_gate = "design"
+verdict = "deny"
+reason = "Code change blocked until the Design gate is approved."
+
+[[rule]]
+id = "test.missing-tests"
+adr = "ADR-0007"
+critical = true
+layers = ["hook", "git", "ci"]
+applies_to = { events = ["stop"] }
+match.missing_tests = true
+verdict = "deny"
+reason = "Source changed without corresponding test changes."
+
+[[rule]]
+id = "deps.needs-adr"
+adr = "ADR-0007"
+critical = true
+layers = ["hook", "git", "ci"]
+applies_to = { tool_category = ["file_write", "shell"] }
+match.path_globs = [
+  "pyproject.toml", "requirements*.txt", "package.json", "go.mod", "Cargo.toml", "pom.xml",
+  "build.gradle*", "Gemfile", "*.csproj",
+]
+match.shell_patterns = ['\b(pip|pip3|npm|pnpm|yarn|poetry|uv|cargo|go|dotnet|gem)\s+(install|add|get)\b']
+match.requires_adr = true
+verdict = "deny"
+reason = "Dependency change blocked until an ADR records it."
+
+[[rule]]
+id = "net.web-tools"
+adr = "ADR-0007"
+applies_to = { tool_category = ["web"] }
+match.any = true
+verdict = "ask"
+reason = "Network access requires approval."
