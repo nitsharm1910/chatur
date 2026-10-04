@@ -96,6 +96,22 @@ Each later layer can **add** rules and **tighten** existing ones, never loosen. 
 weaker verdicts, and redefined rules are load errors, and every problem is reported in one
 `PolicyError`. Inspect the result with `chatur policy show` and check it with `chatur policy validate`.
 
+### Guard engine ([`guard.py`](../src/chatur/guard.py), [`shell.py`](../src/chatur/shell.py), ADR-0017)
+`evaluate(event, policy, ctx) -> Verdict` is pure (no I/O). For shell tools, `shell.analyze()` reads
+the command as written, with PowerShell backtick escapes removed, and with cmd caret escapes removed.
+It recurses into nested shells, substitutions, `-EncodedCommand`, `eval`/`iex`, and `Start-Process`,
+and extracts argv lists, git invocations (after global options), candidate paths, and problems.
+Problems → `defaults.unparseable_command` (ask). `GuardContext` carries facts from other layers
+(approved gates, ADR changed, missing tests). Measured: ~0.3 ms per evaluation, ~14 ms policy load.
+
+### Audit log ([`audit.py`](../src/chatur/audit.py), ADR-0019)
+`AuditLog(root).append(event, verdict)` takes an OS file lock, reads and hash-checks the last
+record, then appends one redacted canonical-JSON line to `.chatur/audit/YYYY-MM-DD.jsonl` (UTC) and
+fsyncs. Each record carries `seq`, `prev` (the previous record's hash), and `hash`, forming one chain
+across days. `chatur audit verify` reports edits, deletions, insertions, reordering, truncated lines,
+and missing earlier files. Removal of the newest records isn't detectable from the chain alone
+(mitigated by committing the log, plus a planned gate-approval anchor).
+
 ## 4. What gets installed into a target project
 ```
 <target>/

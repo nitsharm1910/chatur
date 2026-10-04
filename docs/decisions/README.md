@@ -17,6 +17,9 @@
 | [0013](0013-license-apache-2.md) | License under Apache-2.0 | Accepted |
 | [0014](0014-human-in-the-loop-baseline.md) | Human-in-the-loop baseline: git deny, file/exec ask (amends 0007) | Accepted |
 | [0015](0015-audit-full-commands-masked.md) | Audit stores full commands, secrets masked (refines 0006) | Accepted |
-| [0016](0016-policy-schema-and-composition.md) | Policy schema v1, tighten-only composition | **Proposed** (tighten-only accepted) |
+| [0016](0016-policy-schema-and-composition.md) | Policy schema v1, tighten-only composition | Accepted |
+| [0017](0017-guard-matching-semantics.md) | Guard matching semantics and shell bypass handling | Accepted |
+| [0018](0018-deny-remote-write-clis.md) | Deny remote-write CLIs (gh/glab/hub); `argv_patterns` selector (amends 0014, 0016) | Accepted |
+| [0019](0019-audit-log-format-and-integrity.md) | Audit log format, hash chain, concurrency | **Proposed** |
 
 New decision: copy [0000-template.md](0000-template.md), use the next number, status `Proposed`.

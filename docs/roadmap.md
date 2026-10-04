@@ -13,7 +13,10 @@ Legend: ✅ done · 🔄 in progress · ⏳ planned
 - ✅ 1.1 `pyproject.toml`, `apm.yml`, package layout, CLI stub, pytest + ruff, CI matrix (3.11→3.14 + 3.15 pre-release, 3 OSes)
 - ✅ 1.2 ChaturEvent + Verdict models, secret masking (`redact`) — ADR-0015
 - ✅ 1.3 Policy loader (tighten-only), 3 profiles, `chatur policy validate|show` — ADR-0016
-- ⏳ 1.4 Guard engine + bypass suite · 1.5 Audit log · 1.6 Gates · 1.7 `adr`/`init` · 1.8 Latency benchmark
+- ✅ 1.4 Guard engine + shell analyser + bypass suite (~80 bypasses) — ADR-0017
+- ✅ 1.4b Remote-write CLIs denied (gh/glab/hub) — ADR-0018
+- ✅ 1.5 Audit log: redacted, hash-chained JSONL, cross-process lock, `chatur audit verify|tail` — ADR-0019 (Proposed)
+- ⏳ 1.6 Gates · 1.7 `adr`/`init` · 1.8 Latency benchmark
 - `ChaturEvent`, `Verdict` models
 - Policy loader (TOML, profiles, baseline-not-weakenable)
 - Guard engine + baseline rules (secrets, destructive shell, protected paths)

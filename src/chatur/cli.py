@@ -11,7 +11,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from chatur import __version__
+from chatur import __version__, audit
 from chatur.policy import Policy, PolicyError, load_policy, load_project_policy
 
 
@@ -79,6 +79,28 @@ def _cmd_policy_show(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_audit_verify(args: argparse.Namespace) -> int:
+    report = audit.verify(Path(args.root).resolve())
+    if report.ok:
+        print(f"audit OK: {report.records} records in {report.files} file(s)")
+        return 0
+    print(f"audit FAILED: {len(report.problems)} problem(s)", file=sys.stderr)
+    for problem in report.problems:
+        print(f"  - {problem}", file=sys.stderr)
+    return 1
+
+
+def _cmd_audit_tail(args: argparse.Namespace) -> int:
+    try:
+        records = audit.tail(Path(args.root).resolve(), args.n)
+    except audit.AuditError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+    for record in records:
+        print(json.dumps(record) if args.json else audit.summarize(record))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="chatur",
@@ -99,6 +121,17 @@ def build_parser() -> argparse.ArgumentParser:
         if name == "show":
             sub.add_argument("--json", action="store_true", help="machine-readable output")
         sub.set_defaults(func=func)
+
+    audit_cmd = commands.add_parser("audit", help="inspect and verify the audit log")
+    audit_cmds = audit_cmd.add_subparsers(dest="audit_command", metavar="<action>", required=True)
+    verify = audit_cmds.add_parser("verify", help="check the hash chain; exit 1 on tampering")
+    verify.add_argument("--root", default=".", help="project root (default: current directory)")
+    verify.set_defaults(func=_cmd_audit_verify)
+    tail = audit_cmds.add_parser("tail", help="show the most recent records")
+    tail.add_argument("--root", default=".", help="project root (default: current directory)")
+    tail.add_argument("-n", type=int, default=20, help="number of records (default 20)")
+    tail.add_argument("--json", action="store_true", help="print full JSON records")
+    tail.set_defaults(func=_cmd_audit_tail)
     return parser
 
 

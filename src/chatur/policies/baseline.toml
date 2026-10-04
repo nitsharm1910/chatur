@@ -49,6 +49,38 @@ match.tool_name_patterns = [
 verdict = "deny"
 reason = "Remote repository writes via tools are reserved for humans."
 
+[[rule]]
+id = "git.remote-cli"
+adr = "ADR-0018"
+baseline = true
+layers = ["hook"]                  # git/CI can't see CLI calls; server-side branch protection backs this up
+applies_to = { tool_category = ["shell"] }
+# Matched against each real command as "<basename> <args>". (?:\s+-\S+(?:\s+[^-\s]\S*)?)* = optional flags.
+match.argv_patterns = [
+  '^gh(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+pr(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+(create|merge|close|reopen|edit|ready|review|comment|lock|unlock)\b',
+  '^gh(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+issue(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+(create|close|reopen|edit|delete|comment|transfer|lock|unlock|pin|unpin|develop)\b',
+  '^gh(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+release(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+(create|delete|edit|upload|delete-asset)\b',
+  '^gh(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+repo(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+(create|delete|edit|rename|archive|unarchive|sync|fork|deploy-key\s+(add|delete))\b',
+  '^gh(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+(secret|variable)(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+(set|delete|remove)\b',
+  '^gh(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+workflow(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+(run|enable|disable)\b',
+  '^gh(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+run(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+(cancel|rerun|delete)\b',
+  '^gh(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+(label|gist)(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+(create|edit|delete|clone|rename)\b',
+  '^gh(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+cache(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+delete\b',
+  '^glab(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+mr(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+(create|merge|close|reopen|update|approve|note)\b',
+  '^glab(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+issue(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+(create|close|reopen|update|delete|note)\b',
+  '^glab(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+release(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+(create|delete|upload)\b',
+  '^glab(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+repo(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+(create|delete|fork|archive)\b',
+  '^glab(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+variable(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+(set|update|delete)\b',
+  '^glab(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+ci(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+(run|retry|delete|cancel)\b',
+  '^hub(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+(pull-request|merge|create|delete|fork)\b',
+  '^hub(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+release(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+(create|edit|delete)\b',
+  # write APIs: explicit write method, or body flags (which make the CLI default to POST)
+  '^(gh|glab|hub)(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+api\b.*\s(-X\s*|--method[\s=]+|--request[\s=]+)(POST|PUT|PATCH|DELETE)\b',
+  '^(gh|glab|hub)(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+api\b.*\s(-f|--field|--raw-field|--input|--form)(\s|=|$)',
+]
+verdict = "deny"
+reason = "Remote repository writes via gh/glab/hub are reserved for humans."
+
 # ---------------- gate state & audit (ADR-0006, ADR-0008) ----------------
 [[rule]]
 id = "gate.state-protected"

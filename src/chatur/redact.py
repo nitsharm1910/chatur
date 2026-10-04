@@ -7,7 +7,8 @@ every pattern has positive and false-positive tests.
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from functools import lru_cache
 from typing import Any
 
 # (kind, pattern). Order matters: specific token formats before generic credential shapes.
@@ -72,7 +73,15 @@ def _mask(kind: str) -> str:
     return f"[REDACTED:{kind}]"
 
 
-def redact_text(text: str) -> str:
+@lru_cache(maxsize=256)
+def _custom(pattern: str) -> re.Pattern[str]:
+    return re.compile(pattern)
+
+
+def redact_text(text: str, extra: Sequence[str] = ()) -> str:
+    """Mask secrets. `extra` = project regexes from policy.local.toml [redact] (ADR-0015)."""
+    for pattern in extra:
+        text = _custom(pattern).sub(_mask("custom"), text)
     for kind, pattern in _TOKEN_PATTERNS:
         text = pattern.sub(_mask(kind), text)
     for kind, pattern in _SHAPE_PATTERNS:
@@ -84,18 +93,18 @@ def is_sensitive_key(key: str) -> bool:
     return bool(_SENSITIVE_KEY.search(key))
 
 
-def redact(value: Any) -> Any:
+def redact(value: Any, extra: Sequence[str] = ()) -> Any:
     """Recursively mask secrets in strings, and all values stored under sensitive keys."""
     if isinstance(value, str):
-        return redact_text(value)
+        return redact_text(value, extra)
     if isinstance(value, Mapping):
         out: dict[Any, Any] = {}
         for k, v in value.items():
             if isinstance(k, str) and is_sensitive_key(k) and isinstance(v, str | int | float):
                 out[k] = _mask("sensitive_key")
             else:
-                out[k] = redact(v)
+                out[k] = redact(v, extra)
         return out
     if isinstance(value, list | tuple):
-        return type(value)(redact(v) for v in value)
+        return type(value)(redact(v, extra) for v in value)
     return value

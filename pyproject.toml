@@ -52,4 +52,4 @@ src = ["src", "tests"]
 select = ["E", "F", "W", "I", "B", "UP", "S", "PTH", "RUF"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S105", "S106"]  # asserts and fake-secret fixtures are fine in tests
+"tests/**" = ["S101", "S105", "S106", "S603"]  # asserts, fake secrets, spawning test helpers

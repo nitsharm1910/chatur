@@ -1,7 +1,7 @@
 ---
 id: ADR-0016
 title: Policy schema v1 and tighten-only composition
-status: Proposed   # tighten-only accepted by maintainer 2026-10-03; schema details pending review
+status: Accepted
 date: 2026-10-03
 deciders: Nitin
 phase: design

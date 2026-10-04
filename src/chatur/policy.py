@@ -33,7 +33,9 @@ _RULE_KEYS = frozenset(
 _APPLIES_KEYS = frozenset({"tool_category", "events"})
 _BOOL_SELECTORS = frozenset({"any", "file_write", "shebang"})
 _LIST_SELECTORS = frozenset({"path_globs", "git_subcommands"})
-_REGEX_SELECTORS = frozenset({"shell_patterns", "git_patterns", "tool_name_patterns"})
+_REGEX_SELECTORS = frozenset(
+    {"shell_patterns", "git_patterns", "argv_patterns", "tool_name_patterns"}  # argv: ADR-0018
+)
 _BOOL_CONDITIONS = frozenset({"requires_adr", "missing_tests"})
 _MATCH_KEYS = (
     _BOOL_SELECTORS | _LIST_SELECTORS | _REGEX_SELECTORS | _BOOL_CONDITIONS | {"requires_gate"}

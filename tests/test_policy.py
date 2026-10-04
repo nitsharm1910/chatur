@@ -20,6 +20,7 @@ BASELINE_IDS = {
     "git.no-commit-push",
     "git.no-history-rewrite",
     "git.remote-tools",
+    "git.remote-cli",
     "gate.state-protected",
     "fs.change-needs-approval",
     "exec.needs-approval",
