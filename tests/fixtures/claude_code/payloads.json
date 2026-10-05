@@ -1,0 +1,93 @@
+{
+  "_source": "Shapes from the Claude Code hooks reference (2026-10). Replace with captured payloads (CHATUR_CAPTURE_DIR) after dogfooding.",
+  "pre_bash_status": {
+    "session_id": "s1", "transcript_path": "/t.jsonl", "cwd": "/repo", "permission_mode": "default",
+    "hook_event_name": "PreToolUse", "tool_name": "Bash",
+    "tool_input": {"command": "git status", "description": "Show status"}, "tool_use_id": "toolu_01"
+  },
+  "pre_bash_push": {
+    "session_id": "s1", "transcript_path": "/t.jsonl", "cwd": "/repo", "permission_mode": "default",
+    "hook_event_name": "PreToolUse", "tool_name": "Bash",
+    "tool_input": {"command": "git push origin main"}, "tool_use_id": "toolu_02"
+  },
+  "pre_powershell_remove_state": {
+    "session_id": "s1", "transcript_path": "/t.jsonl", "cwd": "C:\\repo", "permission_mode": "auto",
+    "hook_event_name": "PreToolUse", "tool_name": "PowerShell",
+    "tool_input": {"command": "Remove-Item .chatur\\state.json"}, "tool_use_id": "toolu_03"
+  },
+  "pre_write_readme": {
+    "session_id": "s1", "transcript_path": "/t.jsonl", "cwd": "/repo", "permission_mode": "acceptEdits",
+    "hook_event_name": "PreToolUse", "tool_name": "Write",
+    "tool_input": {"file_path": "/repo/README.md", "content": "# Hello\nsome body text\n"}, "tool_use_id": "toolu_04"
+  },
+  "pre_edit": {
+    "session_id": "s1", "transcript_path": "/t.jsonl", "cwd": "/repo", "permission_mode": "default",
+    "hook_event_name": "PreToolUse", "tool_name": "Edit",
+    "tool_input": {"file_path": "src/app.py", "old_string": "x = 1", "new_string": "x = 2"}, "tool_use_id": "toolu_05"
+  },
+  "pre_read": {
+    "session_id": "s1", "transcript_path": "/t.jsonl", "cwd": "/repo", "permission_mode": "default",
+    "hook_event_name": "PreToolUse", "tool_name": "Read",
+    "tool_input": {"file_path": "/repo/src/app.py"}, "tool_use_id": "toolu_06"
+  },
+  "pre_todowrite": {
+    "session_id": "s1", "transcript_path": "/t.jsonl", "cwd": "/repo", "permission_mode": "default",
+    "hook_event_name": "PreToolUse", "tool_name": "TodoWrite",
+    "tool_input": {"todos": [{"content": "write tests", "status": "pending"}]}, "tool_use_id": "toolu_07"
+  },
+  "pre_mcp_push_files": {
+    "session_id": "s1", "transcript_path": "/t.jsonl", "cwd": "/repo", "permission_mode": "default",
+    "hook_event_name": "PreToolUse", "tool_name": "mcp__github__push_files",
+    "tool_input": {"owner": "o", "repo": "r", "branch": "main"}, "tool_use_id": "toolu_08"
+  },
+  "pre_unknown_tool": {
+    "session_id": "s1", "transcript_path": "/t.jsonl", "cwd": "/repo", "permission_mode": "default",
+    "hook_event_name": "PreToolUse", "tool_name": "Teleport",
+    "tool_input": {}, "tool_use_id": "toolu_09"
+  },
+  "pre_subagent_bash": {
+    "session_id": "s1", "transcript_path": "/t.jsonl", "cwd": "/repo", "permission_mode": "default",
+    "hook_event_name": "PreToolUse", "tool_name": "Bash", "agent_id": "a-1", "agent_type": "developer",
+    "tool_input": {"command": "ls"}, "tool_use_id": "toolu_10"
+  },
+  "pre_dontask_bash": {
+    "session_id": "s1", "transcript_path": "/t.jsonl", "cwd": "/repo", "permission_mode": "dontAsk",
+    "hook_event_name": "PreToolUse", "tool_name": "Bash",
+    "tool_input": {"command": "ls"}, "tool_use_id": "toolu_11"
+  },
+  "post_write": {
+    "session_id": "s1", "transcript_path": "/t.jsonl", "cwd": "/repo", "permission_mode": "default",
+    "hook_event_name": "PostToolUse", "tool_name": "Write",
+    "tool_input": {"file_path": "README.md", "content": "body"}, "tool_response": "File written successfully",
+    "tool_use_id": "toolu_04"
+  },
+  "post_failure": {
+    "session_id": "s1", "transcript_path": "/t.jsonl", "cwd": "/repo",
+    "hook_event_name": "PostToolUseFailure", "tool_name": "Bash",
+    "tool_input": {"command": "npm test"}, "error": "Command failed with exit code 1", "tool_use_id": "toolu_12"
+  },
+  "prompt_plain": {
+    "session_id": "s1", "transcript_path": "/t.jsonl", "cwd": "/repo", "permission_mode": "default",
+    "hook_event_name": "UserPromptSubmit", "prompt": "Build the authentication module", "source": "user"
+  },
+  "session_start": {
+    "session_id": "s1", "transcript_path": "/t.jsonl", "cwd": "/repo",
+    "hook_event_name": "SessionStart", "source": "startup", "model": "claude-opus-5"
+  },
+  "stop": {
+    "session_id": "s1", "transcript_path": "/t.jsonl", "cwd": "/repo", "permission_mode": "default",
+    "hook_event_name": "Stop", "stop_hook_active": false, "last_assistant_message": "Done."
+  },
+  "subagent_stop": {
+    "session_id": "s1", "transcript_path": "/t.jsonl", "cwd": "/repo",
+    "hook_event_name": "SubagentStop", "agent_type": "Explore", "agent_id": "a-2", "last_assistant_message": "Found 3 files"
+  },
+  "session_end": {
+    "session_id": "s1", "transcript_path": "/t.jsonl", "cwd": "/repo",
+    "hook_event_name": "SessionEnd", "reason": "prompt_input_exit"
+  },
+  "notification": {
+    "session_id": "s1", "transcript_path": "/t.jsonl", "cwd": "/repo",
+    "hook_event_name": "Notification", "message": "Claude needs your permission"
+  }
+}

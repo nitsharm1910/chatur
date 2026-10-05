@@ -4,7 +4,7 @@ from dataclasses import replace
 
 import pytest
 
-from chatur.events import ToolCategory
+from chatur.events import ChaturEvent, EventKind, ToolCall, ToolCategory
 from chatur.guard import GuardContext, error_verdict, evaluate, path_matches
 from chatur.policy import load_policy
 from chatur.verdict import Decision
@@ -17,6 +17,34 @@ TRIGGERS = {
     "git.no-history-rewrite": shell_event("git reset --hard HEAD~1"),
     "git.remote-tools": tool_event(ToolCategory.MCP, "mcp__github__push_files"),
     "git.remote-cli": shell_event("gh pr merge 12 --squash"),
+    "gate.no-agent-approval": shell_event("chatur gate approve design"),
+    "secrets.known-token": write_event(
+        "cfg.py", "K = 'ghp_" + "Q7dLm2xP9vR4kT8wZ1bN6cY3hJ5fS0gAeUoI'"
+    ),
+    "secrets.credential-shape": write_event("cfg.py", 'DB_PASSWORD = "s3cr3t-Value9"'),
+    "agent.read-only": ChaturEvent(
+        kind=EventKind.PRE_TOOL,
+        assistant="t",
+        session_id="s",
+        cwd="/repo",
+        agent="chatur-reviewer",
+        tool=ToolCall(ToolCategory.FILE_WRITE, "Write", {}, paths=("x.md",)),
+    ),
+    "agent.write-scope": ChaturEvent(
+        kind=EventKind.PRE_TOOL,
+        assistant="t",
+        session_id="s",
+        cwd="/repo",
+        agent="chatur-qa",
+        tool=ToolCall(ToolCategory.FILE_WRITE, "Write", {}, paths=("src/app.py",)),
+    ),
+    "secrets.in-prompt": ChaturEvent(
+        kind=EventKind.PROMPT,
+        assistant="t",
+        session_id="s",
+        cwd="/repo",
+        prompt="password=Hunter2Pass",
+    ),
     "gate.state-protected": write_event(".chatur/state.json"),
     "fs.change-needs-approval": write_event("README.md"),
     "exec.needs-approval": shell_event("ls"),

@@ -29,6 +29,7 @@ class EventKind(StrEnum):
     SUBAGENT_STOP = "subagent_stop"
     SESSION_END = "session_end"
     ERROR = "error"
+    GATE = "gate"  # human gate approve/revoke via the chatur CLI (ADR-0021)
 
 
 class ToolCategory(StrEnum):
@@ -39,6 +40,7 @@ class ToolCategory(StrEnum):
     WEB = "web"
     AGENT = "agent"
     MCP = "mcp"
+    INTERNAL = "internal"  # assistant-internal: todo lists, questions, plan mode (ADR-0025)
     OTHER = "other"
 
 

@@ -33,6 +33,18 @@ def test_runtime_has_no_dependencies():
     assert project["requires-python"] == ">=3.11"
 
 
+def test_package_data_present():
+    from importlib import resources
+
+    base = resources.files("chatur")
+    for name in ("baseline", "strict", "standard", "relaxed"):
+        assert base.joinpath("policies", f"{name}.toml").is_file()
+    from chatur.project import TEMPLATES
+
+    for name in TEMPLATES:
+        assert base.joinpath("templates", name).is_file(), name
+
+
 def test_cli_version(capsys):
     try:
         main(["--version"])

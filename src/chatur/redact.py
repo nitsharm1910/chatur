@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
 
@@ -87,6 +88,45 @@ def redact_text(text: str, extra: Sequence[str] = ()) -> str:
     for kind, pattern in _SHAPE_PATTERNS:
         text = pattern.sub(lambda m, k=kind: m.group("keep") + _mask(k), text)
     return text
+
+
+_PLACEHOLDER = re.compile(
+    r"\$\{|\$\(|\{\{|<[^>]*>|change_?me|example|dummy|placeholder|redacted|your[_-]|xxxx"
+    r"|^\$[A-Za-z_]\w*$|^\$env:\w+$|^%\w+%$"
+    # references to env/secret stores, not values: os.environ[...], os.getenv(...), process.env.X
+    r"|^(os\.environ|os\.getenv|getenv|environ|process\.env|import\.meta\.env|env\.|ENV\[|secrets\."
+    r"|vault\.|config\.|settings\.|System\.getenv|Environment\.GetEnvironmentVariable)",
+    re.IGNORECASE,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class SecretFinding:
+    kind: str  # e.g. "github_token", "credential"
+    category: str  # "token" (known format) | "credential" (generic shape)
+
+
+def is_placeholder(value: str) -> bool:
+    """`${VAR}`, `<token>`, `changeme`, `...EXAMPLE`, or low-variety values like `ghp_xxxx...`."""
+    return bool(_PLACEHOLDER.search(value)) or len(set(value[-16:])) <= 3
+
+
+def find_secrets(text: str) -> list[SecretFinding]:
+    """Secrets in `text`, placeholders excluded (ADR-0023). Detection only; see redact_text."""
+    findings: list[SecretFinding] = []
+    for kind, pattern in _TOKEN_PATTERNS:
+        findings.extend(
+            SecretFinding(kind, "token")
+            for m in pattern.finditer(text)
+            if not is_placeholder(m.group(0))
+        )
+    for kind, pattern in _SHAPE_PATTERNS:
+        findings.extend(
+            SecretFinding(kind, "credential")
+            for m in pattern.finditer(text)
+            if not is_placeholder(m.group(0)[len(m.group("keep")) :])
+        )
+    return findings
 
 
 def is_sensitive_key(key: str) -> bool:

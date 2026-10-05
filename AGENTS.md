@@ -17,11 +17,12 @@ Read before changing anything:
 ## Repository map
 | Path | Purpose |
 |------|---------|
-| `.apm/` | **Distributable primitives** — what target projects receive (agents, prompts, skills, instructions, hooks) |
+| `.apm/` | **Distributable primitives** — what target projects receive: `agents/` (9 `chatur-*`), `prompts/` (`/chatur-*` commands), `skills/` (with `assets/` templates), `instructions/`, `hooks/` (ADR-0027) |
+| `scripts/` | Dev tools (`sync_primitives.py` copies templates into skill assets; tests enforce sync) |
 | `src/chatur/` | Python core: event normalization, guard engine, audit log, gates, ADR tooling, CLI |
 | `src/chatur/adapters/` | One module per assistant; translates native hook payloads ⇄ `ChaturEvent` |
 | `src/chatur/policies/` | Guardrail policy: `baseline` + profiles `strict`, `standard`, `relaxed` (shipped in the wheel; ADR-0016) |
-| `templates/` | Artifact templates installed into targets (ADR, PRD, test plan, threat model, release notes) |
+| `src/chatur/templates/` | Artifact templates shipped in the wheel and installed by `chatur init` (ADR now; PRD, test plan, threat model, release notes in Phase 3) |
 | `docs/decisions/` | ADRs for Chatur's own design |
 | `docs/journal/` | Dated work journal — what was done, why, what's next |
 | `tests/` | pytest suite; adapter tests use recorded real payload fixtures |

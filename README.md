@@ -17,6 +17,22 @@ Cursor at the instruction level.
 
 Details: [docs/architecture.md](docs/architecture.md) · Decisions: [docs/decisions/](docs/decisions/)
 
+## Try it now (from source)
+```powershell
+python -m venv .venv; .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe -m pytest                      # full test suite
+chatur check "git status"                                 # dry run: exit 0 allow, 2 ask, 3 deny
+chatur check --write src/app.py --profile strict          # file write vs the strict profile
+chatur policy show --profile strict                       # composed policy
+chatur gate status                                        # SDLC gates for this folder
+chatur audit verify                                       # audit hash chain
+chatur adr list                                           # this repo's decisions
+
+# in a scratch project:
+chatur init --profile standard                            # .chatur/, docs/ folders, .gitignore
+chatur adr new "Use PostgreSQL for orders"                # docs/decisions/0001-....md (Proposed)
+```
+
 ## Planned usage (target project)
 ```bash
 pipx install chatur

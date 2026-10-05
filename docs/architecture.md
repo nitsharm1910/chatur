@@ -102,7 +102,11 @@ the command as written, with PowerShell backtick escapes removed, and with cmd c
 It recurses into nested shells, substitutions, `-EncodedCommand`, `eval`/`iex`, and `Start-Process`,
 and extracts argv lists, git invocations (after global options), candidate paths, and problems.
 Problems → `defaults.unparseable_command` (ask). `GuardContext` carries facts from other layers
-(approved gates, ADR changed, missing tests). Measured: ~0.3 ms per evaluation, ~14 ms policy load.
+(approved gates, ADR changed, missing tests). Secret detection (ADR-0023) reuses the `redact`
+patterns via the `contains_secret` selector over file-write content (not `old_*` args), shell texts,
+tool args, and prompts; placeholders and env/secret-store references are ignored.
+Measured (step 1.8): fresh-process hook path p95 ~194 ms incl. interpreter startup; in-process
+load+evaluate p95 ~4 ms.
 
 ### Audit log ([`audit.py`](../src/chatur/audit.py), ADR-0019)
 `AuditLog(root).append(event, verdict)` takes an OS file lock, reads and hash-checks the last
@@ -112,19 +116,51 @@ across days. `chatur audit verify` reports edits, deletions, insertions, reorder
 and missing earlier files. Removal of the newest records isn't detectable from the chain alone
 (mitigated by committing the log, plus a planned gate-approval anchor).
 
+### Phase gates ([`gates.py`](../src/chatur/gates.py), ADR-0021)
+`.chatur/state.json` records each approved phase: approver, time, artifact digest, and an audit anchor
+`(seq, hash)`. `approve` needs a TTY, a typed confirmation, no agent/CI env markers, earlier gates
+approved and fresh, at least one artifact, and an intact audit log. `revoke` cascades to later phases.
+Hooks read recorded approvals only (`approved_gates()`, no hashing). `chatur gate verify` (git/CI)
+catches stale gates, out-of-order state, and anchors missing from the audit chain. Agents are
+denied `chatur gate approve|revoke` by baseline rule `gate.no-agent-approval`.
+
+### Dry run (`chatur check`, ADR-0020)
+Evaluates one shell command, file read/write, or tool call against the project policy without
+executing or logging it. Exit codes: 0 allow/log/warn, 2 ask, 3 deny, 1 error.
+
+### Claude Code adapter ([`adapters/claude_code.py`](../src/chatur/adapters/claude_code.py), [`hook.py`](../src/chatur/hook.py), ADR-0025/0026)
+Claude runs `chatur hook claude_code <Event>` (exec form, no shell) with the payload on stdin.
+`run_hook` parses → evaluates (PreToolUse, UserPromptSubmit, Stop, SubagentStop) → appends to the
+audit log (every handled event; file-write content stored as sha256 + length only) → renders.
+PreToolUse returns only `ask`/`deny` (never `allow`, which would skip Claude's prompt) and fails closed
+(exit 2) on any internal error. `chatur hooks install claude [--local]` merges hooks and ~88 native
+`permissions.deny` rules into `.claude/settings[.local].json`. Claude enforces those rules itself, even if
+Chatur can't run. `.apm/hooks/chatur-claude.json` ships the same hooks via APM.
+
+### SDLC primitives (`.apm/`, ADR-0027)
+9 agents (`chatur-orchestrator`, `-product-analyst`, `-architect`, `-security`, `-developer`, `-qa`,
+`-reviewer`, `-devops`, `-docs`) with only `name`/`description` frontmatter, so they work in every
+assistant. **Least privilege is enforced by Chatur:** baseline `[agents.*]` write scopes +
+`agent.read-only` (deny) + profile `agent.write-scope` (strict deny, else ask), keyed on the agent
+identity the assistant reports. Commands `/chatur-status|requirements|design|build|test|review|release|adr|check`
+each end with the human's `chatur gate approve <phase>` step. Seven skills carry the templates in
+`assets/`; `chatur init` installs the same templates in `docs/templates/`.
+
 ## 4. What gets installed into a target project
 ```
 <target>/
   AGENTS.md / CLAUDE.md / .github/copilot-instructions.md   (compiled by APM)
   .claude/{agents,skills,commands,rules,settings.json}        (Claude target)
   .github/{agents,prompts,instructions,hooks}                 (Copilot target)
-  .chatur/
-    config.toml        # profile, enabled assistants, phase gate settings
-    state.json         # current phase + approvals
+  .chatur/                       # created by `chatur init` (ADR-0022)
+    config.toml        # chatur.config/v1: profile, assistants, audit.commit, gate artifact overrides
+    policy.local.toml  # tighten-only local policy (ADR-0016)
+    state.json         # gate approvals (written by `chatur gate`, ADR-0021)
     audit/YYYY-MM-DD.jsonl
   docs/
-    decisions/         # project ADRs (template from Chatur)
-    requirements/  design/  test/  security/  releases/
+    decisions/         # ADRs: 0000-template.md + `chatur adr new`
+    requirements/  design/  security/  test/  review/  releases/   (README.md in each)
+  .gitignore           # managed block; ignores .chatur/audit/ only when audit.commit = false
 ```
 
 ## 5. SDLC phases & agents (ADR-0008, ADR-0010)

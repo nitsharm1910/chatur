@@ -93,6 +93,56 @@ match.path_globs = [".chatur/state.json", ".chatur/audit/**"]
 verdict = "deny"
 reason = "Gate state and the audit log are written only by the chatur CLI under human control."
 
+[[rule]]
+id = "gate.no-agent-approval"
+adr = "ADR-0008"
+baseline = true
+applies_to = { tool_category = ["shell"] }
+# chatur / chatur.exe / python -m chatur / uv run chatur ... gate approve|revoke (ADR-0021)
+match.argv_patterns = ['(^|[\s/\\])chatur(\.exe)?(\s+-\S+)*\s+gate\s+(approve|revoke)\b']
+verdict = "deny"
+reason = "Only a human may approve or revoke an SDLC gate, from their own terminal."
+
+# ---------------- secrets (ADR-0007, ADR-0023) ----------------
+[[rule]]
+id = "secrets.known-token"
+adr = "ADR-0023"
+baseline = true
+critical = true
+layers = ["hook", "git", "ci"]
+applies_to = { tool_category = ["file_write", "shell", "mcp", "web", "agent", "other"] }
+match.contains_secret = "token"
+verdict = "deny"
+reason = "A real secret/token was detected. Agents must not write secrets to files, use them in commands, or send them to tools. Use an environment variable or secret manager."
+
+[[rule]]
+id = "secrets.credential-shape"
+adr = "ADR-0023"
+baseline = true
+applies_to = { tool_category = ["file_write", "shell", "mcp", "web", "agent", "other"] }
+match.contains_secret = "credential"
+verdict = "ask"
+reason = "Looks like a hard-coded credential (password=..., --token ..., Bearer ...). Confirm it is not a real secret."
+
+[[rule]]
+id = "secrets.in-prompt"
+adr = "ADR-0023"
+baseline = true
+applies_to = { events = ["prompt"] }
+match.contains_secret = "any"
+verdict = "warn"
+reason = "The prompt appears to contain a secret. It is masked in the audit log; prefer environment variables or a secret manager."
+
+# ---------------- agent least privilege (ADR-0010, ADR-0027) ----------------
+[[rule]]
+id = "agent.read-only"
+adr = "ADR-0027"
+baseline = true
+applies_to = { tool_category = ["file_write"] }
+match.read_only_agent = true
+verdict = "deny"
+reason = "This agent is read-only (orchestrator/reviewer). Return findings instead of writing files."
+
 # ---------------- files ----------------
 [[rule]]
 id = "fs.change-needs-approval"
@@ -130,6 +180,46 @@ match.shell_patterns = ['\bchmod\s+(.*\s)?\+?[0-7]*x', '\bicacls\b']
 match.shebang = true
 verdict = "ask"
 reason = "Creating/modifying an executable requires human approval."
+
+# ---------------- agent write scopes (ADR-0027) ----------------
+# Agent names match `name:` in .apm/agents/*.agent.md. Profiles/local may add agents, never modify these.
+[agents.chatur-orchestrator]
+read_only = true
+
+[agents.chatur-reviewer]
+read_only = true
+
+[agents.chatur-product-analyst]
+write = ["docs/requirements/**"]
+
+[agents.chatur-architect]
+write = ["docs/design/**", "docs/decisions/**"]
+
+[agents.chatur-security]
+write = ["docs/security/**"]
+
+[agents.chatur-qa]
+write = [
+  "tests/**", "test/**", "**/__tests__/**", "**/*_test.*", "**/*.test.*", "**/*.spec.*",
+  "**/test_*.py", "docs/test/**",
+]
+
+[agents.chatur-developer]
+write = ["**"]
+exclude = ["docs/**", ".github/workflows/**", ".chatur/**", "CHANGELOG.md"]
+
+[agents.chatur-devops]
+write = [
+  ".github/workflows/**", "ci/**", "deploy/**", "infra/**", "Dockerfile*", "docker-compose*",
+  "docs/releases/**",
+]
+
+[agents.chatur-docs]
+write = ["README.md", "CHANGELOG.md", "docs/**"]
+exclude = [
+  "docs/requirements/**", "docs/design/**", "docs/decisions/**", "docs/security/**",
+  "docs/test/**", "docs/review/**", "docs/releases/**",
+]
 
 # Opt-in only by editing THIS file via a superseding ADR (ADR-0014, ADR-0016). Disabled by default.
 [readonly_allowlist]

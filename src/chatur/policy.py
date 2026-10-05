@@ -31,23 +31,35 @@ _RULE_KEYS = frozenset(
     | {"verdict", "unattended", "reason"}
 )
 _APPLIES_KEYS = frozenset({"tool_category", "events"})
-_BOOL_SELECTORS = frozenset({"any", "file_write", "shebang"})
+_BOOL_SELECTORS = frozenset(
+    {"any", "file_write", "shebang", "read_only_agent", "outside_agent_scope"}  # agent: ADR-0027
+)
 _LIST_SELECTORS = frozenset({"path_globs", "git_subcommands"})
 _REGEX_SELECTORS = frozenset(
     {"shell_patterns", "git_patterns", "argv_patterns", "tool_name_patterns"}  # argv: ADR-0018
 )
 _BOOL_CONDITIONS = frozenset({"requires_adr", "missing_tests"})
+_SECRET_LEVELS = frozenset({"token", "credential", "any"})  # contains_secret (ADR-0023)
 _MATCH_KEYS = (
-    _BOOL_SELECTORS | _LIST_SELECTORS | _REGEX_SELECTORS | _BOOL_CONDITIONS | {"requires_gate"}
+    _BOOL_SELECTORS
+    | _LIST_SELECTORS
+    | _REGEX_SELECTORS
+    | _BOOL_CONDITIONS
+    | {"requires_gate", "contains_secret"}
 )
 _DEFAULT_KEYS = ("unknown_tool", "unparseable_command", "adapter_error")
 _TOP_KEYS = {
     "baseline": frozenset(
-        {"schema", "kind", "description", "defaults", "rule", "readonly_allowlist"}
+        {"schema", "kind", "description", "defaults", "rule", "readonly_allowlist", "agents"}
     ),
-    "profile": frozenset({"schema", "kind", "name", "description", "defaults", "rule", "tighten"}),
-    "local": frozenset({"schema", "kind", "description", "defaults", "rule", "tighten", "redact"}),
+    "profile": frozenset(
+        {"schema", "kind", "name", "description", "defaults", "rule", "tighten", "agents"}
+    ),
+    "local": frozenset(
+        {"schema", "kind", "description", "defaults", "rule", "tighten", "redact", "agents"}
+    ),
 }
+_AGENT_KEYS = ("read_only", "write", "exclude")
 
 
 class PolicyError(ValueError):
@@ -82,10 +94,22 @@ class Defaults:
 
 
 @dataclass(frozen=True, slots=True)
+class AgentScope:
+    """Where a named agent may write (ADR-0027)."""
+
+    name: str
+    source: str
+    read_only: bool = False
+    write: tuple[str, ...] = ()
+    exclude: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class Policy:
     profile: str
     rules: tuple[Rule, ...]
     defaults: Defaults = field(default_factory=Defaults)
+    agents: Mapping[str, AgentScope] = field(default_factory=dict)
     readonly_allowlist: tuple[str, ...] = ()  # regexes; empty unless enabled in baseline
     redact_patterns: tuple[str, ...] = ()  # extra regexes from the local file (ADR-0015)
     sources: tuple[str, ...] = ()
@@ -149,6 +173,10 @@ def _parse_match(data: Any, where: str, problems: list[str]) -> dict[str, Any]:
             out[key] = tuple(_str_list(value, at, problems) or ())
         elif key in _REGEX_SELECTORS:
             out[key] = tuple(_regex_list(value, at, problems) or ())
+        elif key == "contains_secret":
+            if value not in _SECRET_LEVELS:
+                problems.append(f"{at}: must be one of {sorted(_SECRET_LEVELS)}")
+            out[key] = value
         elif key == "requires_gate":
             if value not in PHASES:
                 problems.append(f"{at}: unknown phase {value!r} (allowed: {sorted(PHASES)})")
@@ -345,6 +373,43 @@ def _apply_layer(
     return defaults
 
 
+def _apply_agents(
+    agents: dict[str, AgentScope], data: Any, source: str, problems: list[str]
+) -> None:
+    """[agents.<name>] tables. Later layers may add new agents, never modify existing ones."""
+    if data is None:
+        return
+    if not isinstance(data, Mapping):
+        problems.append(f"{source}.agents: must be a table of [agents.<name>] tables")
+        return
+    for name, spec in data.items():
+        where = f"{source}.agents.{name}"
+        if not isinstance(name, str) or not _ID_RE.match(name):
+            problems.append(f"{where}: agent name must match {_ID_RE.pattern}")
+            continue
+        if name in agents:
+            problems.append(
+                f"{where}: already defined by {agents[name].source}; agent scopes can't be modified"
+            )
+            continue
+        if not isinstance(spec, Mapping):
+            problems.append(f"{where}: must be a table")
+            continue
+        start = len(problems)
+        _unknown_keys(spec, _AGENT_KEYS, where, problems)
+        read_only = spec.get("read_only", False)
+        if not isinstance(read_only, bool):
+            problems.append(f"{where}.read_only: must be true/false")
+        write = tuple(_str_list(spec.get("write", []), f"{where}.write", problems) or ())
+        exclude = tuple(_str_list(spec.get("exclude", []), f"{where}.exclude", problems) or ())
+        if read_only and (write or exclude):
+            problems.append(f"{where}: a read_only agent can't have write/exclude globs")
+        if not read_only and not write:
+            problems.append(f"{where}: needs read_only = true or at least one write glob")
+        if len(problems) == start:
+            agents[name] = AgentScope(name, source, bool(read_only), write, exclude)
+
+
 def packaged_policy_dir() -> Traversable:
     return resources.files("chatur").joinpath("policies")
 
@@ -363,6 +428,7 @@ def load_policy(
         raise PolicyError([f"invalid profile name {profile!r}"])
 
     rules: dict[str, Rule] = {}
+    agents: dict[str, AgentScope] = {}
     defaults = Defaults()
     allowlist: tuple[str, ...] = ()
     redact_patterns: tuple[str, ...] = ()
@@ -372,6 +438,7 @@ def load_policy(
     if base is not None:
         sources.append("baseline")
         defaults = _apply_layer(rules, defaults, base, "baseline", problems)
+        _apply_agents(agents, base.get("agents"), "baseline", problems)
         allow = base.get("readonly_allowlist", {})
         if isinstance(allow, Mapping):
             _unknown_keys(allow, ("enabled", "commands"), "baseline.readonly_allowlist", problems)
@@ -387,12 +454,14 @@ def load_policy(
             problems.append(f"profile:{profile}: 'name' must be {profile!r}")
         sources.append(f"profile:{profile}")
         defaults = _apply_layer(rules, defaults, prof, f"profile:{profile}", problems)
+        _apply_agents(agents, prof.get("agents"), f"profile:{profile}", problems)
 
     if local_path is not None:
         local = _read_doc(local_path, "local", problems)
         if local is not None:
             sources.append("local")
             defaults = _apply_layer(rules, defaults, local, "local", problems)
+            _apply_agents(agents, local.get("agents"), "local", problems)
             redact = local.get("redact", {})
             if isinstance(redact, Mapping):
                 _unknown_keys(redact, ("extra_patterns",), "local.redact", problems)
@@ -409,6 +478,7 @@ def load_policy(
         profile=profile,
         rules=tuple(rules.values()),
         defaults=defaults,
+        agents=agents,
         readonly_allowlist=allowlist,
         redact_patterns=redact_patterns,
         sources=tuple(sources),

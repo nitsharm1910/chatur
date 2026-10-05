@@ -154,6 +154,28 @@ def iter_records(root: Path) -> Iterator[tuple[Path, int, dict[str, Any]]]:
 
 # --------------------------------------------------------------------------- writing
 
+_PATH_KEYS = frozenset({"file_path", "notebook_path", "path", "paths"})
+
+
+def _digest(value: Any) -> Any:
+    if isinstance(value, str):
+        return {"sha256": hashlib.sha256(value.encode("utf-8")).hexdigest(), "chars": len(value)}
+    if isinstance(value, dict):
+        return {k: (v if k in _PATH_KEYS else _digest(v)) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_digest(v) for v in value]
+    return value
+
+
+def strip_file_contents(event: dict[str, Any]) -> dict[str, Any]:
+    """ADR-0006/ADR-0025: file-write events keep paths; content becomes {sha256, chars}."""
+    tool = event.get("tool")
+    if isinstance(tool, dict) and tool.get("category") == "file_write":
+        tool["args"] = {
+            k: (v if k in _PATH_KEYS else _digest(v)) for k, v in (tool.get("args") or {}).items()
+        }
+    return event
+
 
 class AuditLog:
     def __init__(
@@ -182,7 +204,7 @@ class AuditLog:
                     "seq": (previous["seq"] + 1) if previous else 1,
                     "ts": now.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
                     "chatur_version": __version__,
-                    "event": event.to_dict(redact_secrets=False),
+                    "event": strip_file_contents(event.to_dict(redact_secrets=False)),
                     "verdict": verdict.to_dict() if verdict else None,
                     "prev": previous["hash"] if previous else GENESIS,
                 },

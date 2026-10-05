@@ -7,12 +7,13 @@ gates, git-diff facts) come in through GuardContext. Strictest matching rule win
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from functools import lru_cache
 
-from chatur.events import ChaturEvent, ToolCategory
-from chatur.policy import Policy, Rule
+from chatur.events import ChaturEvent, EventKind, ToolCategory
+from chatur.policy import AgentScope, Policy, Rule
+from chatur.redact import SecretFinding, find_secrets
 from chatur.shell import ShellAnalysis, analyze, command_base, normalize_path
 from chatur.verdict import Decision, RuleHit, Verdict
 
@@ -26,6 +27,12 @@ SELECTORS = (
     "git_patterns",
     "argv_patterns",
     "tool_name_patterns",
+    "contains_secret",
+    "read_only_agent",  # ADR-0027
+    "outside_agent_scope",  # ADR-0027
+)
+_ARG_SCAN_CATEGORIES = frozenset(
+    {ToolCategory.MCP, ToolCategory.WEB, ToolCategory.AGENT, ToolCategory.OTHER}
 )
 _WILDCARDS = re.compile(r"[*?\[]")
 
@@ -79,14 +86,19 @@ def _ancestors(path: str) -> list[str]:
     return ["/".join(parts[: i + 1]) for i in range(len(parts))]
 
 
+def glob_matches(path: str, pattern: str) -> bool:
+    """Plain glob match (case-insensitive; slash-less patterns match the basename at any depth)."""
+    regex = _glob_regex(pattern)
+    if regex.fullmatch(path):
+        return True
+    return "/" not in pattern and bool(regex.fullmatch(path.rsplit("/", 1)[-1]))
+
+
 def path_matches(path: str, pattern: str) -> bool:
     """Normalised path vs glob: case-insensitive, ancestor and wildcard-token rules (ADR-0017)."""
     if not path:
         return False
-    regex = _glob_regex(pattern)
-    if regex.fullmatch(path):
-        return True
-    if "/" not in pattern and regex.fullmatch(path.rsplit("/", 1)[-1]):
+    if glob_matches(path, pattern):
         return True
     if path in (".", "/"):
         return False
@@ -115,11 +127,37 @@ class _Facts:
     shell: ShellAnalysis | None
     paths: tuple[str, ...]
     allowlisted: bool
+    secrets: tuple[SecretFinding, ...] = ()
+    agent_scope: AgentScope | None = None  # set only for file writes by a known agent
+
+
+_ABSOLUTE = re.compile(r"^(/|[A-Za-z]:/|\.\.(/|$))")
+
+
+def _outside_project(normalized: str) -> bool:
+    """Normalised paths stay absolute (or start with ..) only when outside the project root."""
+    return bool(_ABSOLUTE.match(normalized))
 
 
 def _selector(key: str, value: object, facts: _Facts) -> bool:
     tool = facts.event.tool
     shell = facts.shell
+    if key == "read_only_agent":
+        return value is True and facts.agent_scope is not None and facts.agent_scope.read_only
+    if key == "outside_agent_scope":
+        scope = facts.agent_scope
+        if value is not True or scope is None or scope.read_only:
+            return False
+        if not facts.paths:
+            return True  # a write we can't place is treated as out of scope
+        return any(
+            _outside_project(p)
+            or not any(glob_matches(p, g) for g in scope.write)
+            or any(glob_matches(p, g) for g in scope.exclude)
+            for p in facts.paths
+        )
+    if key == "contains_secret":
+        return any(value == "any" or f.category == value for f in facts.secrets)
     if key == "any":
         if facts.allowlisted:
             return False
@@ -191,6 +229,37 @@ def _event_paths(
     return tuple(dict.fromkeys(p for p in normalized if p))
 
 
+def _strings(value: object, *, skip_old: bool) -> Iterable[str]:
+    """String leaves of tool args. With skip_old, keys like old_string/oldText are skipped so that
+    removing a secret from a file is never blocked (ADR-0023)."""
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, Mapping):
+        for k, v in value.items():
+            if skip_old and isinstance(k, str) and k.lower().startswith("old"):
+                continue
+            yield from _strings(v, skip_old=skip_old)
+    elif isinstance(value, list | tuple):
+        for v in value:
+            yield from _strings(v, skip_old=skip_old)
+
+
+def _secret_findings(event: ChaturEvent, shell: ShellAnalysis | None) -> tuple[SecretFinding, ...]:
+    """Which text is scanned for secrets depends on the event (ADR-0023)."""
+    texts: list[str] = []
+    tool = event.tool
+    if event.kind is EventKind.PROMPT and event.prompt:
+        texts.append(event.prompt)
+    if tool is not None:
+        if tool.category is ToolCategory.FILE_WRITE:
+            texts.extend(_strings(dict(tool.args), skip_old=True))
+        elif tool.category is ToolCategory.SHELL and shell is not None:
+            texts.extend(shell.texts)
+        elif tool.category in _ARG_SCAN_CATEGORIES:
+            texts.extend(_strings(dict(tool.args), skip_old=False))
+    return tuple(f for text in texts for f in find_secrets(text))
+
+
 def _allowlisted(shell: ShellAnalysis | None, patterns: Iterable[str]) -> bool:
     if shell is None or not shell.simple:
         return False
@@ -209,6 +278,12 @@ def evaluate(event: ChaturEvent, policy: Policy, ctx: GuardContext | None = None
         shell=shell,
         paths=_event_paths(event, shell, ctx.project_root or event.cwd),
         allowlisted=_allowlisted(shell, policy.readonly_allowlist),
+        secrets=_secret_findings(event, shell)
+        if any("contains_secret" in r.match for r in policy.rules)
+        else (),
+        agent_scope=policy.agents.get(event.agent or "")
+        if tool is not None and tool.category is ToolCategory.FILE_WRITE
+        else None,
     )
 
     hits = [

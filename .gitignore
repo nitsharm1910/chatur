@@ -18,3 +18,4 @@ apm_modules/
 .env.*
 .DS_Store
 Thumbs.db
+.claude/settings.local.json

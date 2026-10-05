@@ -58,3 +58,11 @@ applies_to = { tool_category = ["web"] }
 match.any = true
 verdict = "log"
 reason = "Network access is logged."
+
+[[rule]]
+id = "agent.write-scope"
+adr = "ADR-0027"
+applies_to = { tool_category = ["file_write"] }
+match.outside_agent_scope = true
+verdict = "ask"
+reason = "Write outside this agent's scope (ADR-0027). Hand the change to the owning agent."

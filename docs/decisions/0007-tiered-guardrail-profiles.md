@@ -7,6 +7,7 @@ deciders: Nitin
 phase: design
 tags: [guardrails, policy]
 amended_by: [ADR-0014]
+implemented_by: [ADR-0023]   # the "secrets" baseline row
 ---
 
 > **Amended by [ADR-0014](0014-human-in-the-loop-baseline.md):** git commit/push/history-rewrite (deny),

@@ -1,9 +1,9 @@
 ---
 id: ADR-0019
 title: Audit log format, hash chain, and concurrency
-status: Proposed
+status: Accepted
 date: 2026-10-04
-deciders: Nitin (pending)
+deciders: Nitin
 phase: design
 tags: [audit, integrity]
 refines: [ADR-0006, ADR-0015]
