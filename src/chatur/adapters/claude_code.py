@@ -348,6 +348,74 @@ def uninstall(root: Path, *, local: bool) -> Path | None:
     return path
 
 
+# --------------------------------------------------------------------------- primitives (ADR-0028)
+
+PRIMITIVES_MANIFEST = ".claude/.chatur-primitives.json"
+_FRONT = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
+_COMMAND_KEYS = ("allowed-tools", "model")
+
+
+def _split_front(text: str) -> tuple[str, str]:
+    match = _FRONT.match(text.replace("\r\n", "\n"))
+    if not match:
+        raise ValueError("primitive has no front matter")
+    return match.group(1), text.replace("\r\n", "\n")[match.end() :]
+
+
+def _scalar(fm: str, key: str) -> str | None:
+    match = re.search(rf"(?m)^{re.escape(key)}:\s*(.+)$", fm)
+    return match.group(1).strip() if match else None
+
+
+def command_from_prompt(text: str) -> str:
+    """APM prompt -> Claude slash command: keep Claude keys; ${input:x} -> $ARGUMENTS or $n."""
+    fm, body = _split_front(text)
+    inputs = re.findall(r"(?m)^  - ([\w-]+)$", fm)
+    lines = ["---", f"description: {_scalar(fm, 'description') or ''}"]
+    hint = _scalar(fm, "argument-hint") or " ".join(f"<{name}>" for name in inputs)
+    if hint:
+        lines.append(f"argument-hint: {hint}")
+    lines.extend(f"{k}: {v}" for k in _COMMAND_KEYS if (v := _scalar(fm, k)))
+    lines.append("---")
+    for index, name in enumerate(inputs, start=1):
+        body = body.replace(f"${{input:{name}}}", "$ARGUMENTS" if len(inputs) == 1 else f"${index}")
+    return "\n".join(lines) + "\n" + body
+
+
+def rule_from_instructions(text: str) -> str:
+    """APM instructions -> Claude rule: applyTo globs become a `paths:` list."""
+    fm, body = _split_front(text)
+    apply_to = (_scalar(fm, "applyTo") or "**").strip("'\"")
+    paths = ", ".join(json.dumps(p.strip()) for p in apply_to.split(",") if p.strip())
+    description = _scalar(fm, "description") or ""
+    return f"---\ndescription: {description}\npaths: [{paths}]\n---\n{body}"
+
+
+def primitive_files(source: Path) -> list[Any]:
+    from chatur.primitives import PrimitiveFile
+
+    files: list[PrimitiveFile] = []
+    for path in sorted((source / "agents").glob("*.agent.md")):
+        name = path.name.removesuffix(".agent.md")
+        files.append(PrimitiveFile(f".claude/agents/{name}.md", path.read_bytes()))
+    for path in sorted((source / "prompts").glob("*.prompt.md")):
+        name = path.name.removesuffix(".prompt.md")
+        content = command_from_prompt(path.read_text(encoding="utf-8")).encode("utf-8")
+        files.append(PrimitiveFile(f".claude/commands/{name}.md", content))
+    for path in sorted((source / "instructions").glob("*.instructions.md")):
+        name = path.name.removesuffix(".instructions.md")
+        content = rule_from_instructions(path.read_text(encoding="utf-8")).encode("utf-8")
+        files.append(PrimitiveFile(f".claude/rules/{name}.md", content))
+    skills = source / "skills"
+    for path in sorted(p for p in skills.rglob("*") if p.is_file()) if skills.is_dir() else []:
+        files.append(
+            PrimitiveFile(
+                f".claude/skills/{path.relative_to(skills).as_posix()}", path.read_bytes()
+            )
+        )
+    return files
+
+
 def apm_hook_file() -> dict[str, Any]:
     """Content of .apm/hooks/chatur-claude.json (shell form; `chatur` from PATH)."""
     return {"hooks": hook_settings(SHARED_INVOCATION, shell_form=True)}

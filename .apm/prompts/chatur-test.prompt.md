@@ -10,7 +10,7 @@ Start the **test** phase for: ${input:feature}
 2. Delegate to **chatur-qa** (`chatur-test-plan` skill):
    - `docs/test/test-plan-<name>.md` tracing every acceptance criterion and threat-model mitigation to tests;
    - implement missing integration/e2e tests (test paths only);
-   - run the suites and write `docs/test/test-report-<name>.md` from `docs/templates/test-report.md`.
+   - run the suites and write `docs/test/test-report-<name>.md` from `.chatur/templates/test-report.md`.
 3. Report failures as defects for chatur-developer; never delete or skip a failing test.
 4. Summarise: pass/fail counts, coverage, open defects, recommendation.
 

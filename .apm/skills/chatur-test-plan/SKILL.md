@@ -5,7 +5,7 @@ description: Use when planning and reporting testing for a feature — tracing a
 
 # Test plan and test report
 
-Templates: `assets/test-plan.md` and `assets/test-report.md` (also in `docs/templates/`).
+Templates: `assets/test-plan.md` and `assets/test-report.md` (also in `.chatur/templates/`).
 Save as `docs/test/test-plan-<name>.md` and `docs/test/test-report-<name>.md`.
 
 ## Plan

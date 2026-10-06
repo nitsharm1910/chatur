@@ -27,6 +27,7 @@ BASELINE_IDS = {
     "secrets.credential-shape",
     "secrets.in-prompt",
     "agent.read-only",
+    "harness.read-only",
     "fs.change-needs-approval",
     "exec.needs-approval",
     "exec.no-new-executables",

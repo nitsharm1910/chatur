@@ -133,6 +133,22 @@ match.contains_secret = "any"
 verdict = "warn"
 reason = "The prompt appears to contain a secret. It is masked in the audit log; prefer environment variables or a secret manager."
 
+# ---------------- harness boundary (ADR-0029) ----------------
+[[rule]]
+id = "harness.read-only"
+adr = "ADR-0029"
+baseline = true
+critical = true
+layers = ["hook", "git", "ci"]
+applies_to = { tool_category = ["file_write", "shell"] }
+match.path_globs = [
+  ".chatur/**", ".claude/settings.json", ".claude/settings.local.json",
+  ".claude/agents/chatur-*", ".claude/commands/chatur-*", ".claude/skills/chatur-*/**",
+  ".claude/rules/chatur-*", ".claude/.chatur-primitives.json",
+]
+verdict = "deny"
+reason = "Chatur harness files (config, policy, gates, audit, hooks, chatur-* agents/commands/skills/rules, templates) are read-only for agents. Read them with the Read tool; a human changes them."
+
 # ---------------- agent least privilege (ADR-0010, ADR-0027) ----------------
 [[rule]]
 id = "agent.read-only"

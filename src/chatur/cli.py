@@ -12,7 +12,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from chatur import __version__, adr, audit, gates, project
+from chatur import __version__, adr, audit, gates, primitives, project
 from chatur.adapters import get_adapter
 from chatur.events import ChaturEvent, EventKind, ToolCall, ToolCategory
 from chatur.guard import GuardContext, evaluate
@@ -366,7 +366,7 @@ def _cmd_hooks(args: argparse.Namespace) -> int:
             )
             print(f"installed Chatur hooks + native deny rules into {path}")
             if args.local:
-                _ensure_gitignored(root, ".claude/settings.local.json")
+                _report_gitignore(root)
             else:
                 print("  hooks call `chatur` from PATH; install it with `pipx install chatur`")
             return 0
@@ -378,19 +378,48 @@ def _cmd_hooks(args: argparse.Namespace) -> int:
         return 1
 
 
+def _cmd_primitives(args: argparse.Namespace) -> int:
+    try:
+        adapter = get_adapter(args.adapter)
+        root = Path(args.root).resolve()
+        if args.primitives_command == "install":
+            files = adapter.primitive_files(primitives.primitives_root())
+            report = primitives.apply(root, files, adapter.PRIMITIVES_MANIFEST, force=args.force)
+        else:
+            report = primitives.remove(root, adapter.PRIMITIVES_MANIFEST)
+    except (ValueError, primitives.PrimitivesError) as exc:
+        print(f"chatur primitives: {exc}", file=sys.stderr)
+        return 1
+    for label, paths in (
+        ("written", report.written),
+        ("updated", report.updated),
+        ("removed", report.removed),
+    ):
+        for path in paths:
+            print(f"  {label:<9} {path}")
+    for path, reason in report.skipped:
+        print(f"  skipped   {path} ({reason})")
+    print(
+        f"{args.primitives_command}: {len(report.written)} written, {len(report.updated)} updated, "
+        f"{len(report.unchanged)} unchanged, {len(report.removed)} removed, "
+        f"{len(report.skipped)} skipped"
+    )
+    if args.primitives_command == "install":
+        _report_gitignore(root)
+        print("  hooks are separate: chatur hooks install claude [--local]")
+    return 0
+
+
+def _report_gitignore(root: Path) -> None:
+    result = project.ensure_gitignore(root)
+    if result.created or result.updated:
+        print("  .gitignore: managed block added/updated (harness tooling ignored, ADR-0029)")
+
+
 def _invocation(adapter: object, *, local: bool) -> tuple[str, ...]:
     if local:  # this machine's interpreter: no PATH dependency (ADR-0025)
         return (sys.executable, "-m", "chatur", "hook", adapter.NAME)  # type: ignore[attr-defined]
     return adapter.SHARED_INVOCATION  # type: ignore[attr-defined]
-
-
-def _ensure_gitignored(root: Path, rel: str) -> None:
-    gitignore = root / ".gitignore"
-    text = gitignore.read_text(encoding="utf-8") if gitignore.is_file() else ""
-    if rel not in text.splitlines():
-        with gitignore.open("a", encoding="utf-8") as f:
-            f.write(("" if not text or text.endswith("\n") else "\n") + rel + "\n")
-        print(f"  added {rel} to .gitignore")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -525,6 +554,25 @@ def build_parser() -> argparse.ArgumentParser:
         if name == "print":
             sub.add_argument("--apm", action="store_true", help="APM hook file format")
         sub.set_defaults(func=_cmd_hooks)
+
+    prims = commands.add_parser(
+        "primitives", help="install agents/commands/skills/rules without APM (ADR-0028)"
+    )
+    prims_cmds = prims.add_subparsers(dest="primitives_command", metavar="<action>", required=True)
+    for name, help_text in (
+        ("install", "copy Chatur agents, commands, skills, rules into the assistant's folder"),
+        ("uninstall", "remove only unmodified files Chatur installed"),
+    ):
+        sub = prims_cmds.add_parser(name, help=help_text)
+        sub.add_argument("adapter", help="assistant: claude")
+        sub.add_argument("--root", default=".", help="project root (default: current directory)")
+        if name == "install":
+            sub.add_argument(
+                "--force", action="store_true", help="overwrite modified/foreign files"
+            )
+        else:
+            sub.set_defaults(force=False)
+        sub.set_defaults(func=_cmd_primitives)
     return parser
 
 

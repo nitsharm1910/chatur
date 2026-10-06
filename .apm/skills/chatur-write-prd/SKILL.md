@@ -5,7 +5,7 @@ description: Use when writing or revising a product requirements document (PRD) 
 
 # Write a PRD
 
-Template: `assets/prd.md` (also at `docs/templates/prd.md`). Save as `docs/requirements/PRD-<kebab-name>.md`.
+Template: `assets/prd.md` (also at `.chatur/templates/prd.md`). Save as `docs/requirements/PRD-<kebab-name>.md`.
 
 ## Steps
 1. **Problem first.** One paragraph: who, what pain, why now, evidence. Confirm it with the human.

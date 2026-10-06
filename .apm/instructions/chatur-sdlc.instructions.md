@@ -22,7 +22,7 @@ previous gate is not approved; under the strict profile Chatur blocks it.
 | review | chatur-reviewer + chatur-security | `docs/review/` | `/chatur-review` |
 | release | chatur-devops + chatur-docs | `docs/releases/`, `CHANGELOG.md` | `/chatur-release` |
 
-Templates live in `docs/templates/`.
+Templates live in `.chatur/templates/`.
 
 ## Always
 - Record significant decisions as ADRs: `chatur adr new "<title>"` (Proposed; humans accept).

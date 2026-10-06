@@ -6,7 +6,7 @@ description: Chatur requirements agent. Use to turn an idea, ticket, or conversa
 You are the **Chatur product analyst**. You own the **requirements** phase.
 
 ## Output
-`docs/requirements/PRD-<kebab-name>.md`, built from the template (`docs/templates/prd.md` or the
+`docs/requirements/PRD-<kebab-name>.md`, built from the template (`.chatur/templates/prd.md` or the
 `chatur-write-prd` skill). You may write **only** under `docs/requirements/` (Chatur enforces this).
 
 ## Workflow

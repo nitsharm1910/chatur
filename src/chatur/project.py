@@ -28,7 +28,7 @@ DOC_FOLDERS = {
     "releases": "Release notes. Gate: release (with CHANGELOG.md).",
 }
 
-# SDLC templates shipped in the wheel (ADR-0027): installed to docs/templates/ by init, and copied
+# SDLC templates in the wheel (ADR-0027/0029): init installs them to .chatur/templates/; copied
 # into the APM skills' assets/ (kept identical by tests/test_primitives.py).
 TEMPLATES = (
     "prd.md",
@@ -122,8 +122,31 @@ def _write_new(root: Path, rel: str, content: str, result: InitResult) -> None:
     result.created.append(rel)
 
 
+# ADR-0029: regenerable harness tooling is ignored; governance records (.chatur config, policy,
+# state, audit) stay committed so CI can verify gates and the audit stays tamper-evident.
+TOOLING_IGNORES = (
+    ".claude/agents/chatur-*",
+    ".claude/commands/chatur-*",
+    ".claude/skills/chatur-*/",
+    ".claude/rules/chatur-*",
+    ".claude/.chatur-primitives.json",
+    ".claude/settings.local.json",
+    ".chatur/templates/",
+    ".chatur/audit/.lock",
+    ".chatur/state.json.tmp",
+)
+
+
+def ensure_gitignore(root: Path) -> InitResult:
+    """Add/refresh the managed block, honouring an existing config's audit.commit (default true)."""
+    result = InitResult()
+    commit = _configured_commit(root / ".chatur" / "config.toml", default=True)
+    _update_gitignore(root, commit, result)
+    return result
+
+
 def gitignore_block(commit_audit: bool) -> str:
-    lines = [GITIGNORE_BEGIN, ".chatur/audit/.lock", ".chatur/state.json.tmp"]
+    lines = [GITIGNORE_BEGIN, *TOOLING_IGNORES]
     if not commit_audit:
         lines.append(".chatur/audit/")
     lines.append(GITIGNORE_END)
@@ -192,7 +215,7 @@ def init_project(
         _write_new(root, f"docs/{folder}/README.md", f"# {folder.title()}\n\n{purpose}\n", result)
     _write_new(root, "docs/decisions/0000-template.md", packaged_template(), result)
     for name in TEMPLATES:
-        _write_new(root, f"docs/templates/{name}", template_text(name), result)
+        _write_new(root, f".chatur/templates/{name}", template_text(name), result)
     _update_gitignore(root, commit_audit, result)
 
     load_project_policy(root)  # the written config + local policy must compose cleanly

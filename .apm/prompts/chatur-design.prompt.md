@@ -7,7 +7,7 @@ input:
 Start the **design** phase for: ${input:feature}
 
 1. Run `chatur gate status`. If the requirements gate is not approved (or is stale), stop and tell me.
-2. Delegate to **chatur-architect** (`chatur-design-doc` skill, template `docs/templates/design.md`):
+2. Delegate to **chatur-architect** (`chatur-design-doc` skill, template `.chatur/templates/design.md`):
    options with trade-offs, a recommendation, and an ADR per significant decision
    (`chatur adr new "<decision>" --phase design`).
 3. Delegate to **chatur-security** (`chatur-threat-model` skill) for

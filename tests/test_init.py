@@ -24,7 +24,7 @@ def test_init_creates_layout(tmp_path):
         "docs/decisions/0000-template.md",
         ".gitignore",
         *(f"docs/{f}/README.md" for f in DOC_FOLDERS),
-        *(f"docs/templates/{t}" for t in TEMPLATES),
+        *(f".chatur/templates/{t}" for t in TEMPLATES),  # harness-owned (ADR-0029)
     }
     assert set(result.created) == expected
     config = tomllib.loads((tmp_path / ".chatur/config.toml").read_text(encoding="utf-8"))

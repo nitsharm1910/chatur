@@ -22,6 +22,7 @@ TRIGGERS = {
         "cfg.py", "K = 'ghp_" + "Q7dLm2xP9vR4kT8wZ1bN6cY3hJ5fS0gAeUoI'"
     ),
     "secrets.credential-shape": write_event("cfg.py", 'DB_PASSWORD = "s3cr3t-Value9"'),
+    "harness.read-only": write_event(".claude/agents/chatur-developer.md"),
     "agent.read-only": ChaturEvent(
         kind=EventKind.PRE_TOOL,
         assistant="t",

@@ -40,7 +40,10 @@ Legend: ✅ done · 🔄 in progress · ⏳ planned
 - ✅ 3.5 9 commands `.apm/prompts/chatur-*.prompt.md`
 - ✅ 3.6 7 skills with `assets/` templates; 7 new templates; `chatur init` installs `docs/templates/`
 - ✅ 3.7 Primitive lint tests (`tests/test_primitives.py`), `scripts/sync_primitives.py`
-- ⏳ 3.8 Try the full flow on a sample project (requirements → design with real agents)
+- ✅ 3.8a `chatur primitives install|uninstall claude` + primitives in the wheel — ADR-0028 (Proposed)
+- ✅ 3.8b Sample project `C:\Users\nitin\chatur-sample` (init + hooks + primitives)
+- ✅ 3.9 Harness boundary (maintainer request): `harness.read-only` baseline deny; tooling gitignored, governance committed; templates → `.chatur/templates/` — ADR-0029
+- ⏳ 3.8c Maintainer walkthrough in Claude Code: `/chatur-status` → `/chatur-requirements` → approve → `/chatur-design`
 
 ## Phase 4 — Copilot adapter
 - `.github/hooks/*.json` (version 1), bash + powershell, cloud-agent constraints

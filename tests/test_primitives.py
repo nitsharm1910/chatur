@@ -145,7 +145,10 @@ def test_references_resolve(path):
         assert agent in AGENT_NAMES
     for skill in set(re.findall(r"`(chatur-[a-z-]+)` skill", text)):
         assert skill in SKILL_NAMES, f"{path.name} references unknown skill {skill}"
-    for template in set(re.findall(r"docs/templates/([\w-]+\.md)", text)):
+    assert "docs/templates" not in text, (
+        f"{path.name}: templates live in .chatur/templates (ADR-0029)"
+    )
+    for template in set(re.findall(r"\.chatur/templates/([\w-]+\.md)", text)):
         assert template in TEMPLATES, f"{path.name} references unknown template {template}"
 
 

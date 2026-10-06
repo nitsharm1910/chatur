@@ -5,7 +5,7 @@ description: Use when producing a technical design from an approved PRD — comp
 
 # Write a design document
 
-Template: `assets/design.md` (also `docs/templates/design.md`). Save as `docs/design/<kebab-name>.md`.
+Template: `assets/design.md` (also `.chatur/templates/design.md`). Save as `docs/design/<kebab-name>.md`.
 
 ## Steps
 1. Confirm the requirements gate is approved (`chatur gate status`).

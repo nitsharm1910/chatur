@@ -5,7 +5,7 @@ description: Use when preparing a release — release notes, version bump plan, 
 
 # Release notes
 
-Template: `assets/release-notes.md` (also `docs/templates/release-notes.md`).
+Template: `assets/release-notes.md` (also `.chatur/templates/release-notes.md`).
 Save as `docs/releases/<version>.md`.
 
 ## Steps

@@ -29,6 +29,8 @@
 | [0025](0025-claude-code-adapter.md) | Claude Code adapter, hook entrypoint, install (fixes ADR-0006 content logging) | Accepted |
 | [0026](0026-claude-permission-modes.md) | Claude permission modes vs "ask" (auto observed attended) | Accepted |
 | [0027](0027-sdlc-primitives.md) | SDLC primitives: agents + write scopes, commands, skills, templates | Accepted |
+| [0028](0028-primitives-install-without-apm.md) | `chatur primitives install`: primitives in the wheel, non-APM channel | **Proposed** |
+| [0029](0029-harness-boundary.md) | Harness boundary: Chatur files read-only for agents, tooling gitignored, templates → `.chatur/templates/` | Accepted |
 
 List from the CLI: `chatur adr list` · create: `chatur adr new "<title>"`.
 

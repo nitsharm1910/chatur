@@ -5,7 +5,7 @@ description: Use when threat modelling a design with STRIDE — data flows, trus
 
 # Threat model (STRIDE)
 
-Template: `assets/threat-model.md` (also `docs/templates/threat-model.md`).
+Template: `assets/threat-model.md` (also `.chatur/templates/threat-model.md`).
 Save as `docs/security/threat-model-<kebab-name>.md`.
 
 ## Steps

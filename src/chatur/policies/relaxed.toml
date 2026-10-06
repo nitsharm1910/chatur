@@ -11,8 +11,8 @@ id = "fs.protected-paths"
 adr = "ADR-0007"
 applies_to = { tool_category = ["file_write", "shell"] }
 match.path_globs = [
-  ".chatur/config.toml", ".chatur/policy.local.toml", ".github/workflows/**", ".github/hooks/**",
-  ".claude/settings.json", ".claude/settings.local.json", ".apm/hooks/**", "apm.yml", "apm-policy.yml",
+  # .chatur/** and .claude/settings*.json are baseline harness.read-only (ADR-0029)
+  ".github/workflows/**", ".github/hooks/**", ".apm/hooks/**", "apm.yml", "apm-policy.yml",
 ]
 verdict = "warn"
 reason = "Protected configuration path: changes affect guardrails or CI."

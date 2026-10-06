@@ -5,7 +5,7 @@ description: Use when reviewing a change before release against the approved des
 
 # Code review
 
-Template: `assets/review.md` (also `docs/templates/review.md`). The reviewer is read-only; the
+Template: `assets/review.md` (also `.chatur/templates/review.md`). The reviewer is read-only; the
 `/chatur-review` command saves the result to `docs/review/review-<name>.md`.
 
 ## Steps

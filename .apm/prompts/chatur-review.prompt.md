@@ -11,7 +11,7 @@ Start the **review** phase for: ${input:change}
    the approved design, accepted ADRs, the test report, and policy. Run `chatur gate verify`.
 3. Delegate to **chatur-security** for the security section.
 4. The reviewer can't write files: **you** save the combined review to
-   `docs/review/review-<kebab-name>.md` using `docs/templates/review.md`.
+   `docs/review/review-<kebab-name>.md` using `.chatur/templates/review.md`.
 5. Summarise the verdict and blocking findings.
 
 End with exactly this instruction for me:
