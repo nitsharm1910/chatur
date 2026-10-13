@@ -25,7 +25,8 @@ def test_token_formats_masked(kind, secret):
 
 
 def test_private_key_block_masked():
-    pem = "-----BEGIN RSA PRIVATE KEY-----\nMIIEow\nabc\n-----END RSA PRIVATE KEY-----"
+    kind = "RSA " + "PRIVATE KEY"  # built at runtime: no literal key block in the repo (ADR-0030)
+    pem = f"-----BEGIN {kind}-----\nMIIEow\nabc\n-----END {kind}-----"
     out = redact_text(f"echo '{pem}' > id_rsa")
     assert "MIIEow" not in out
     assert "[REDACTED:private_key]" in out
@@ -102,6 +103,45 @@ def test_masks_are_never_re_masked(secret):
     out = redact_text(f"git clone https://{secret}@github.com/a/b && export TOKEN={secret}")
     assert "[REDACTED:[" not in out
     assert redact_text(out) == out  # idempotent
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        '"event": strip_file_contents(event.to_dict(redact_secrets=False)),',
+        '"""Normalised path vs glob: ancestor and wildcard-token rules (ADR-0017)."""',
+        "A shell token containing wildcards matches if it",
+        '1. **New selector `contains_secret = "token" | "credential" | "any"`**',
+        'TOKEN = "ghp_" + "Q7dLm2xP9vR4kT8wZ1bN6cY3hJ5fS0gAeUoI"',
+        "token = config.apiKey",
+        "secret = getenv(",
+        "token = _glob_regex(path)",
+        "secrets=_secret_findings(event, shell)",
+        '_SECRET_LEVELS = frozenset({"token", "credential", "any"})',
+    ],
+)
+def test_prose_and_code_are_not_credentials(line):
+    # Regressions from running ci-check on Chatur itself (2026-10-12).
+    from chatur.redact import find_secrets
+
+    assert [f for f in find_secrets(line) if f.category == "credential"] == []
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "export API_KEY=abc123xyz",
+        "mysql --password=s3cr3tpw -u root",
+        "curl -H 'Authorization: Bearer abc.def.ghi123'",
+        "curl -H 'Authorization: token ab12cd34ef56'",
+        'DB_PASSWORD = "s3cr3t-Value9"',
+        "git clone https://nitin:pa55word@github.com/x/y.git",
+    ],
+)
+def test_real_credential_shapes_still_detected(line):
+    from chatur.redact import find_secrets
+
+    assert any(f.category == "credential" for f in find_secrets(line))
 
 
 def test_redact_does_not_mutate_input():

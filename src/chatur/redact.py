@@ -47,10 +47,13 @@ _SHAPE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
         "url_credentials",
         re.compile(r"(?P<keep>[a-z][a-z0-9+.\-]*://[^\s:/@\[\]]+:)[^\s@/\[\]]+(?=@)", re.I),
     ),
-    # Authorization: Bearer xxx / Basic xxx
+    # Authorization: Bearer xxx / Basic xxx / Authorization: token xxx ("token" alone is prose)
     (
         "auth_header",
-        re.compile(r"(?P<keep>\b(?:Bearer|Basic|Token)\s+)[A-Za-z0-9._~+/=\-]{8,}", re.I),
+        re.compile(
+            r"(?P<keep>\b(?:Bearer|Basic)\s+|\bAuthorization:\s*(?:Token\s+)?)[A-Za-z0-9._~+/=\-]{8,}",
+            re.I,
+        ),
     ),
     # password=xxx, API_KEY: "xxx", $env:TOKEN = 'xxx'
     (
@@ -63,7 +66,8 @@ _SHAPE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     # --password xxx, --token=xxx style flags
     (
         "credential_flag",
-        re.compile(rf"(?P<keep>--?(?:{_CRED_WORDS})[\w\-]*[\s=:]+['\"]?){_VALUE}", re.I),
+        # (?<![\w-]): a real flag starts a word; "wildcard-token rules" is prose
+        re.compile(rf"(?P<keep>(?<![\w-])--?(?:{_CRED_WORDS})[\w\-]*[\s=:]+['\"]?){_VALUE}", re.I),
     ),
 )
 
@@ -121,12 +125,30 @@ def find_secrets(text: str) -> list[SecretFinding]:
             if not is_placeholder(m.group(0))
         )
     for kind, pattern in _SHAPE_PATTERNS:
-        findings.extend(
-            SecretFinding(kind, "credential")
-            for m in pattern.finditer(text)
-            if not is_placeholder(m.group(0)[len(m.group("keep")) :])
-        )
+        for m in pattern.finditer(text):
+            value = m.group(0)[len(m.group("keep")) :]
+            if not is_placeholder(value) and plausible_credential(value):
+                findings.append(SecretFinding(kind, "credential"))
     return findings
+
+
+# identifiers, dotted names, calls and subscripts: `config.apiKey`, `getenv(`, `_glob_regex(path)`
+_CODE_REFERENCE = re.compile(r"^[A-Za-z_]\w*(\.[A-Za-z_]\w*)*([(\[].*)?$")
+_LITERAL_WORDS = frozenset({"true", "false", "none", "null", "nil", "undefined", "self", "this"})
+
+
+def plausible_credential(value: str) -> bool:
+    """Filters prose and code out of credential-shape matches (dogfooding, 2026-10-12):
+    `redact_secrets=False`, `contains_secret = "token"`, `token = config.apiKey` are not secrets.
+    Masking (redact_text) stays aggressive; this only affects detection."""
+    v = value.strip().rstrip(")]},;:.")
+    if len(v) < 6 or v.lower() in _LITERAL_WORDS:
+        return False
+    has_digit = any(c.isdigit() for c in v)
+    has_symbol = any(not c.isalnum() and c != "_" for c in v)
+    if not (has_digit or has_symbol or len(v) >= 12):
+        return False
+    return not (_CODE_REFERENCE.match(v) and not has_digit)
 
 
 def is_sensitive_key(key: str) -> bool:

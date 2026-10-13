@@ -11,7 +11,7 @@ from chatur.cli import main
 from chatur.gates import GateError, approve, approved_gates, revoke, status, verify_gates
 from conftest import shell_event
 
-HUMAN = {"env": {}, "interactive": True, "confirm": lambda phase: True, "who": "Tester <t@x>"}
+HUMAN = {"env": {}, "interactive": True, "confirm": lambda request: True, "who": "Tester <t@x>"}
 
 
 @pytest.fixture
@@ -65,8 +65,95 @@ def test_refuses_without_terminal(project):
 
 
 def test_refuses_wrong_confirmation(project):
-    with pytest.raises(GateError, match="confirmation did not match"):
-        approve(project, "requirements", **{**HUMAN, "confirm": lambda phase: False})
+    with pytest.raises(GateError, match="not confirmed; the 'requirements' gate was not changed"):
+        approve(project, "requirements", **{**HUMAN, "confirm": lambda request: False})
+    assert not gates.state_path(project).exists()
+
+
+def test_confirmation_shows_what_is_approved(project):
+    seen = []
+    approve(project, "requirements", **{**HUMAN, "confirm": lambda r: seen.append(r) or True})
+    (request,) = seen
+    assert request.action == "approve" and request.phase == "requirements"
+    assert request.approver == "Tester <t@x>"
+    assert request.details == ("Artifacts (1 file):", "  - docs/requirements/PRD-login.md")
+
+
+def test_confirmation_flags_reapproval(project):
+    approve(project, "requirements", **HUMAN)
+    (project / "docs" / "requirements" / "PRD-login.md").write_text("changed", encoding="utf-8")
+    seen = []
+    approve(project, "requirements", **{**HUMAN, "confirm": lambda r: seen.append(r) or True})
+    assert seen[0].details[0].startswith("Re-approval")
+
+
+def test_preconditions_checked_before_asking(tmp_path):
+    asked = []
+    with pytest.raises(GateError, match="no artifacts"):
+        approve(tmp_path, "requirements", **{**HUMAN, "confirm": lambda r: asked.append(r)})
+    with pytest.raises(GateError, match="earlier gate"):
+        approve(tmp_path, "design", **{**HUMAN, "confirm": lambda r: asked.append(r)})
+    assert asked == []  # never asked to confirm something that would fail
+
+
+def test_long_artifact_lists_are_truncated(project):
+    for i in range(15):
+        (project / "docs" / "requirements" / f"extra-{i:02d}.md").write_text("x", encoding="utf-8")
+    seen = []
+    approve(project, "requirements", **{**HUMAN, "confirm": lambda r: seen.append(r) or True})
+    details = seen[0].details
+    assert details[0] == "Artifacts (16 files):"
+    assert details[-1] == "  ... and 6 more"
+
+
+def test_revoke_confirmation_lists_cascade(project):
+    approve(project, "requirements", **HUMAN)
+    approve(project, "design", **HUMAN)
+    seen = []
+    revoke(project, "requirements", **{**HUMAN, "confirm": lambda r: seen.append(r) or True})
+    assert seen[0].details == ("Gates that will be revoked: requirements, design",)
+
+
+# --------------------------------------------------------------------------- terminal prompt
+
+
+def _request(phase: str = "requirements") -> gates.ConfirmRequest:
+    return gates.ConfirmRequest("approve", phase, "Tester <t@x>", ("Artifacts (1 file):",))
+
+
+def _answers(*values: str):
+    it = iter(values)
+    return lambda prompt: next(it)
+
+
+@pytest.mark.parametrize(
+    ("answers", "expected"),
+    [
+        (("requirements",), True),
+        (("Requirements ",), True),  # case and surrounding spaces ignored
+        (("PRD-tasks-cli", "requirements"), True),  # the reported mistake, then corrected
+        (("x", "y", "z"), False),  # three wrong attempts
+        (("",), False),  # empty line cancels
+    ],
+)
+def test_terminal_prompt(capsys, answers, expected):
+    from chatur.cli import _confirm
+
+    assert _confirm("approve", read=_answers(*answers))(_request()) is expected
+    out = capsys.readouterr().out
+    assert "You are about to APPROVE the 'requirements' gate." in out
+    assert "To confirm, type the phase name: requirements" in out
+    if answers[0] == "PRD-tasks-cli":
+        assert "You typed 'PRD-tasks-cli'. Type the phase name 'requirements' itself" in out
+
+
+def test_terminal_prompt_ctrl_c_cancels():
+    from chatur.cli import _confirm
+
+    def interrupt(prompt):
+        raise KeyboardInterrupt
+
+    assert _confirm("approve", read=interrupt)(_request()) is False
 
 
 def test_refuses_unknown_phase(project):
@@ -122,6 +209,48 @@ def test_config_overrides_artifacts(project):
     (project / "specs").mkdir()
     (project / "specs" / "a.txt").write_text("x", encoding="utf-8")
     assert approve(project, "requirements", **HUMAN)["artifacts"]["files"] == ["specs/a.txt"]
+
+
+def test_init_placeholder_readmes_are_not_artifacts(tmp_path):
+    # Walkthrough finding (2026-10-11): placeholder READMEs counted as artifacts, so a gate could
+    # be approved with no real document.
+    from chatur.project import init_project
+
+    init_project(tmp_path)
+    assert all(s.file_count == 0 for s in status(tmp_path))
+    with pytest.raises(GateError, match="no artifacts for 'requirements'"):
+        approve(tmp_path, "requirements", **HUMAN)
+    readme = tmp_path / "docs" / "requirements" / "README.md"
+    readme.write_text("# Requirements\n\nThe real PRD lives here.\n", encoding="utf-8")
+    assert approve(tmp_path, "requirements", **HUMAN)["artifacts"]["files"] == [
+        "docs/requirements/README.md"  # edited README is real content and counts
+    ]
+
+
+def test_line_endings_dont_make_gates_stale(project):
+    # Release smoke test (2026-10-12): Windows checkouts (autocrlf) have CRLF, Linux CI has LF.
+    prd = project / "docs" / "requirements" / "PRD-login.md"
+    prd.write_bytes(b"# PRD\nline two\n")
+    approve(project, "requirements", **HUMAN)
+    prd.write_bytes(b"# PRD\r\nline two\r\n")
+    assert {s.phase: s.state for s in status(project)}["requirements"] == "approved"
+    prd.write_bytes(b"# PRD\r\nline 2\r\n")  # a real content change is still detected
+    assert {s.phase: s.state for s in status(project)}["requirements"] == "stale"
+
+
+def test_binary_artifacts_hash_raw_bytes(tmp_path):
+    (tmp_path / "a.bin").write_bytes(b"\x00\r\n")
+    (tmp_path / "b.bin").write_bytes(b"\x00\n")
+    assert gates.artifact_digest(tmp_path, ["a.bin"]) != gates.artifact_digest(tmp_path, ["b.bin"])
+
+
+def test_crlf_placeholder_still_recognised(tmp_path):
+    from chatur.project import placeholder_readme
+
+    path = tmp_path / "docs" / "design" / "README.md"
+    path.parent.mkdir(parents=True)
+    path.write_bytes(placeholder_readme("design").replace("\n", "\r\n").encode("utf-8"))
+    assert gates.collect_artifacts(tmp_path, ("docs/design/**/*.md",)) == []
 
 
 def test_artifact_walk_skips_tool_dirs(project):

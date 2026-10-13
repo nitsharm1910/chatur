@@ -49,12 +49,22 @@ Legend: ✅ done · 🔄 in progress · ⏳ planned
 - `.github/hooks/*.json` (version 1), bash + powershell, cloud-agent constraints
 - Copilot agents/prompts/instructions verification
 
-## Phase 5 — Backstop
-- `chatur git-hook pre-commit|pre-push`
-- `chatur ci-check` + reusable GitHub Actions workflow
+## Phase 5 — Backstop ✅
+- ✅ 5.1 ADR-0030 (explicit checks mapped to the rules they back; critical-rule coverage test)
+- ✅ 5.2 `backstop.py`: agent-session, secrets, governance (audit/policy/approval↔audit consistency), stale gates, profile process rules, history rewrite, AI trailers, committed tooling
+- ✅ 5.3 `chatur git-hook pre-commit|pre-push`, `chatur git-hooks install|uninstall`, `.pre-commit-hooks.yaml`
+- ✅ 5.4 `chatur ci-check`, root `action.yml` (inputs via env), `chatur ci install github`; Chatur's own CI runs it
+- ✅ 5.5 Real-git tests incl. end-to-end blocked commit; dogfood findings fixed (fake PEM literals in tests; credential false positives in code/prose; grouped output)
 
-## Phase 6 — Release v1.0
-- Dogfood on a sample target project end-to-end, docs, tag `v1.0.0`
+## Phase 6 — Release 0.9.0 🔄 (ADR-0031: 0.9 now for Claude Code; 1.0.0 after Phase 4)
+- ✅ 6.1 ADR-0031 · 6.2 version 0.9.0, beta classifier
+- ✅ 6.3 `release.yml`: tag → build (version check, wheel contents) → TestPyPI → PyPI (OIDC, approval) → GitHub Release
+- ✅ 6.4 README quickstart, CHANGELOG, release notes, SECURITY, CONTRIBUTING, `docs/guide/` (CLI coverage test)
+- ✅ 6.5 Clean-venv wheel smoke test of the full quickstart (found and fixed a CRLF/LF gate-digest bug)
+- ⏳ 6.6 Maintainer: [release checklist](releases/checklist.md) (ADR-0028, self config, PyPI/GitHub setup, tag)
+
+## 1.0.0
+- Phase 4 Copilot adapter; ADR-0026 mode verification; interface freeze
 
 ## Later
 - Codex, Gemini, Cursor adapters · SDK runner for CI/headless · external exporters (GitHub Issues/Jira)

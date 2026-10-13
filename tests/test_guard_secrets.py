@@ -23,7 +23,8 @@ OPENAI = fake("sk-proj-", 40)
 SLACK = fake("xoxb-", 24)
 GOOGLE = fake("AIza", 35)
 STRIPE = fake("sk_" + "live_", 24)
-PEM = "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA7d\n-----END RSA PRIVATE KEY-----"
+_KIND = "RSA " + "PRIVATE KEY"  # built at runtime: no literal key block in the repo (ADR-0030)
+PEM = f"-----BEGIN {_KIND}-----\nMIIEowIBAAKCAQEA7d\n-----END {_KIND}-----"
 
 
 def tool(category: ToolCategory, name: str, args: dict, *, attended: bool = True) -> ChaturEvent:

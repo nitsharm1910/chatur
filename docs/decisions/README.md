@@ -31,6 +31,8 @@
 | [0027](0027-sdlc-primitives.md) | SDLC primitives: agents + write scopes, commands, skills, templates | Accepted |
 | [0028](0028-primitives-install-without-apm.md) | `chatur primitives install`: primitives in the wheel, non-APM channel | **Proposed** |
 | [0029](0029-harness-boundary.md) | Harness boundary: Chatur files read-only for agents, tooling gitignored, templates → `.chatur/templates/` | Accepted |
+| [0030](0030-git-and-ci-backstop.md) | Git and CI backstop: pre-commit, pre-push, ci-check, GitHub Action | Accepted |
+| [0031](0031-release-0-9-and-versioning.md) | Release 0.9.0 (Claude Code), 0.x versioning, trusted publishing, relaxed self-governance | Accepted |
 
 List from the CLI: `chatur adr list` · create: `chatur adr new "<title>"`.
 

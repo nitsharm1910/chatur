@@ -45,7 +45,20 @@ SKIP_DIRS = frozenset(
 )
 MAX_LISTED_FILES = 100
 
-Confirm = Callable[[str], bool]
+MAX_PREVIEW_FILES = 10
+
+
+@dataclass(frozen=True, slots=True)
+class ConfirmRequest:
+    """Everything the human sees before typing the confirmation."""
+
+    action: str  # "approve" | "revoke"
+    phase: str
+    approver: str
+    details: tuple[str, ...]  # human-readable lines (artifacts, affected gates, ...)
+
+
+Confirm = Callable[[ConfirmRequest], bool]
 
 
 class GateError(RuntimeError):
@@ -110,6 +123,24 @@ def artifact_globs(root: Path, phase: str) -> tuple[str, ...]:
     return DEFAULT_ARTIFACTS[phase]
 
 
+def is_init_placeholder(root: Path, rel: str) -> bool:
+    """True for a docs/<phase-folder>/README.md still exactly as `chatur init` wrote it.
+    Placeholders must not satisfy the "artifacts exist" gate check (walkthrough finding)."""
+    from chatur.project import placeholder_readme  # local import: project -> adr -> gates
+
+    parts = rel.split("/")
+    if len(parts) != 3 or parts[0] != "docs" or parts[2] != "README.md":
+        return False
+    expected = placeholder_readme(parts[1])
+    if expected is None:
+        return False
+    try:
+        actual = (root / rel).read_text(encoding="utf-8").replace("\r\n", "\n")
+    except (OSError, UnicodeDecodeError):
+        return False
+    return actual == expected
+
+
 def collect_artifacts(root: Path, globs: tuple[str, ...]) -> list[str]:
     found: list[str] = []
     for dirpath, dirnames, filenames in os.walk(root):
@@ -117,16 +148,22 @@ def collect_artifacts(root: Path, globs: tuple[str, ...]) -> list[str]:
         rel_dir = Path(dirpath).relative_to(root).as_posix()
         for name in filenames:
             rel = name if rel_dir == "." else f"{rel_dir}/{name}"
-            if any(glob_matches(rel, g) for g in globs):
+            if any(glob_matches(rel, g) for g in globs) and not is_init_placeholder(root, rel):
                 found.append(rel)
     return sorted(found)
+
+
+def _content_for_digest(data: bytes) -> bytes:
+    """Text files hash with LF line endings, so a gate approved on Windows (core.autocrlf -> CRLF)
+    isn't stale on a Linux CI checkout (LF). Binary files (containing NUL) hash as-is."""
+    return data if b"\0" in data else data.replace(b"\r\n", b"\n")
 
 
 def artifact_digest(root: Path, files: list[str]) -> str:
     h = hashlib.sha256()
     for rel in files:
-        file_hash = hashlib.sha256((root / rel).read_bytes()).hexdigest()
-        h.update(f"{rel}\0{file_hash}\n".encode())
+        content = _content_for_digest((root / rel).read_bytes())
+        h.update(f"{rel}\0{hashlib.sha256(content).hexdigest()}\n".encode())
     return h.hexdigest()
 
 
@@ -170,9 +207,9 @@ def agent_markers(env: Mapping[str, str]) -> list[str]:
     return [k for k in AGENT_ENV_MARKERS if env.get(k)]
 
 
-def _human_checks(
-    phase: str, action: str, env: Mapping[str, str], interactive: bool, confirm: Confirm
-) -> None:
+def _human_checks(phase: str, action: str, env: Mapping[str, str], interactive: bool) -> None:
+    """Who may act (a human at a terminal). The typed confirmation comes last, after every
+    other check has passed, so the human is never asked to confirm something that will fail."""
     if phase not in PHASES:
         raise GateError(f"unknown phase {phase!r} (phases: {', '.join(PHASES)})")
     markers = agent_markers(env)
@@ -183,8 +220,18 @@ def _human_checks(
         )
     if not interactive:
         raise GateError(f"refusing to {action} a gate: an interactive terminal is required")
-    if not confirm(phase):
-        raise GateError("confirmation did not match; nothing changed")
+
+
+def _confirmed(confirm: Confirm, request: ConfirmRequest) -> None:
+    if not confirm(request):
+        raise GateError(f"not confirmed; the {request.phase!r} gate was not changed")
+
+
+def _file_lines(files: list[str]) -> tuple[str, ...]:
+    shown = [f"  - {f}" for f in files[:MAX_PREVIEW_FILES]]
+    if len(files) > MAX_PREVIEW_FILES:
+        shown.append(f"  ... and {len(files) - MAX_PREVIEW_FILES} more")
+    return (f"Artifacts ({len(files)} file{'s' if len(files) != 1 else ''}):", *shown)
 
 
 def identity(root: Path) -> str:
@@ -234,7 +281,7 @@ def approve(
     clock: Callable[[], datetime] | None = None,
     extra_patterns: tuple[str, ...] = (),
 ) -> dict[str, Any]:
-    _human_checks(phase, "approve", env, interactive, confirm)
+    _human_checks(phase, "approve", env, interactive)
     state = load_state(root)
     statuses = {s.phase: s for s in status(root)}
     for earlier in PHASES[: PHASES.index(phase)]:
@@ -256,6 +303,10 @@ def approve(
     anchor = {"seq": report.records, "hash": report.last_hash}
 
     who = who or identity(root)
+    details = _file_lines(files)
+    if statuses[phase].state == "stale":
+        details = ("Re-approval: these artifacts changed since the last approval.", *details)
+    _confirmed(confirm, ConfirmRequest("approve", phase, who, details))
     record: dict[str, Any] = {
         "approved_by": who,
         "approved_at": _utc(clock),
@@ -291,19 +342,26 @@ def revoke(
     extra_patterns: tuple[str, ...] = (),
 ) -> list[str]:
     """Remove `phase` and every later gate. Returns the phases removed."""
-    _human_checks(phase, "revoke", env, interactive, confirm)
+    _human_checks(phase, "revoke", env, interactive)
     state = load_state(root)
     later = PHASES[PHASES.index(phase) :]
     removed = [p for p in later if p in state["gates"]]
     if not removed:
         raise GateError(f"{phase!r} is not approved; nothing to revoke")
+    who = who or identity(root)
+    _confirmed(
+        confirm,
+        ConfirmRequest(
+            "revoke", phase, who, (f"Gates that will be revoked: {', '.join(removed)}",)
+        ),
+    )
     audit.AuditLog(root, extra_patterns=extra_patterns).append(
         _audit_event(
             root,
             {
                 "action": "revoke",
                 "phases": removed,
-                "revoked_by": who or identity(root),
+                "revoked_by": who,
                 "revoked_at": _utc(clock),
             },
         )

@@ -153,6 +153,16 @@ install manifest. The baseline rule `harness.read-only` denies it (critical: hoo
 writes and for any shell mention including parent directories. Regenerable **tooling** is gitignored;
 **governance records** (config, local policy, gate state, audit) stay committed.
 
+### Git and CI backstop ([`backstop.py`](../src/chatur/backstop.py), ADR-0030)
+Explicit checks, each declaring the rules it backs (a test requires every critical git/ci rule to be
+covered): **agent-session** (agent env markers block commit/push), **secrets** (added lines; tokens block,
+credential shapes warn), **governance** (audit chain, policy validity, every `state.json` approval matches
+an audit `gate` record, anchors), **stale gates** (warn locally, block in CI), **process** (profile rules
+over changed paths), **history-rewrite** (CI), **AI trailers** (CI, warn). Entry points:
+`chatur git-hook pre-commit|pre-push` (installed by `chatur git-hooks install` or the pre-commit framework)
+and `chatur ci-check` (GitHub: root `action.yml`, `chatur ci install github`). Local hooks can be skipped
+with `--no-verify`; CI is authoritative.
+
 ## 4. What gets installed into a target project
 ```
 <target>/

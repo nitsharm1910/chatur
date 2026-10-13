@@ -33,3 +33,15 @@ jobs:
       - run: python -m ruff check .
       - run: python -m ruff format --check .
       - run: python -m pytest
+
+  # Dogfood the governance backstop through the repo's own composite action (ADR-0030).
+  backstop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./
+        with:
+          base: ${{ github.event.pull_request.base.sha || github.event.before }}
+          before: ${{ github.event.before }}

@@ -12,7 +12,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from chatur import __version__, adr, audit, gates, primitives, project
+from chatur import __version__, adr, audit, backstop, gates, githooks, primitives, project
 from chatur.adapters import get_adapter
 from chatur.events import ChaturEvent, EventKind, ToolCall, ToolCategory
 from chatur.guard import GuardContext, evaluate
@@ -206,12 +206,38 @@ def _cmd_gate_status(args: argparse.Namespace) -> int:
     return 0
 
 
-def _confirm(action: str) -> gates.Confirm:
-    def ask(phase: str) -> bool:
-        try:
-            return input(f"Type '{phase}' to {action} this gate: ").strip() == phase
-        except EOFError:
-            return False
+CONFIRM_ATTEMPTS = 3
+
+
+def _confirm(action: str, read: object = input) -> gates.Confirm:
+    """Show what will change, then require the phase name typed back (deliberate friction)."""
+
+    def ask(request: gates.ConfirmRequest) -> bool:
+        phase = request.phase
+        print(f"\nYou are about to {request.action.upper()} the '{phase}' gate.")
+        print(f"  Approver: {request.approver}")
+        for line in request.details:
+            print(f"  {line}")
+        print("  This is recorded in .chatur/state.json and the audit log.")
+        print(f"\nTo confirm, type the phase name: {phase}")
+        print("(Press Enter on an empty line, or Ctrl+C, to cancel.)")
+        for attempt in range(1, CONFIRM_ATTEMPTS + 1):
+            try:
+                typed = read(f"Confirm {request.action} [{phase}]: ").strip()  # type: ignore[operator]
+            except (EOFError, KeyboardInterrupt):
+                print()
+                return False
+            if not typed:
+                return False
+            if typed.lower() == phase.lower():
+                return True
+            left = CONFIRM_ATTEMPTS - attempt
+            if left:
+                print(
+                    f"  You typed '{typed}'. Type the phase name '{phase}' itself "
+                    f"(not a file or feature name). {left} attempt{'s' if left > 1 else ''} left."
+                )
+        return False
 
     return ask
 
@@ -416,6 +442,78 @@ def _report_gitignore(root: Path) -> None:
         print("  .gitignore: managed block added/updated (harness tooling ignored, ADR-0029)")
 
 
+def _repo_root(start: str) -> Path:
+    try:
+        return Path(backstop.git(Path(start), "rev-parse", "--show-toplevel").strip())
+    except backstop.GitError:
+        return Path(start).resolve()
+
+
+def _emit(report: backstop.Report) -> int:
+    github = backstop.is_github(os.environ)
+    stream = sys.stderr if report.blocked else sys.stdout
+    print(backstop.render(report, github=github), file=stream)
+    if github:
+        backstop.write_github_summary(report, os.environ)
+    return 1 if report.blocked else 0
+
+
+def _cmd_git_hook(args: argparse.Namespace) -> int:
+    """Called by .git/hooks/* scripts. Exit 1 blocks the commit/push."""
+    root = _repo_root(".")
+    try:
+        if args.hook == "pre-commit":
+            report = backstop.pre_commit(root, os.environ)
+        else:
+            report = backstop.pre_push(root, os.environ, sys.stdin.read())
+    except backstop.GitError as exc:
+        print(f"chatur {args.hook}: {exc}", file=sys.stderr)
+        return 1
+    return _emit(report)
+
+
+def _cmd_git_hooks(args: argparse.Namespace) -> int:
+    root = _repo_root(args.root)
+    try:
+        if args.git_hooks_command == "install":
+            for path in githooks.install(root, force=args.force, shared=args.shared):
+                print(f"installed {path}")
+            print(
+                "  note: `git commit --no-verify` skips local hooks; "
+                "CI (`chatur ci-check`) is authoritative"
+            )
+        else:
+            removed = githooks.uninstall(root)
+            print("\n".join(f"removed {p}" for p in removed) or "no Chatur-managed hooks found")
+    except (githooks.InstallError, backstop.GitError) as exc:
+        print(f"chatur git-hooks: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def _cmd_ci_check(args: argparse.Namespace) -> int:
+    root = _repo_root(args.root)
+    try:
+        report = backstop.ci_check(
+            root, base=args.base or None, head=args.head, before=args.before or None
+        )
+    except backstop.GitError as exc:
+        print(f"chatur ci-check: {exc}", file=sys.stderr)
+        return 1
+    return _emit(report)
+
+
+def _cmd_ci_install(args: argparse.Namespace) -> int:
+    try:
+        path = githooks.install_github_workflow(_repo_root(args.root), force=args.force)
+    except githooks.InstallError as exc:
+        print(f"chatur ci install: {exc}", file=sys.stderr)
+        return 1
+    print(f"wrote {path}")
+    print(f"  it uses nitsharm1910/chatur@v{__version__}: that tag must exist on GitHub")
+    return 0
+
+
 def _invocation(adapter: object, *, local: bool) -> tuple[str, ...]:
     if local:  # this machine's interpreter: no PATH dependency (ADR-0025)
         return (sys.executable, "-m", "chatur", "hook", adapter.NAME)  # type: ignore[attr-defined]
@@ -554,6 +652,36 @@ def build_parser() -> argparse.ArgumentParser:
         if name == "print":
             sub.add_argument("--apm", action="store_true", help="APM hook file format")
         sub.set_defaults(func=_cmd_hooks)
+
+    git_hook = commands.add_parser("git-hook", help="backstop entrypoint called by .git/hooks")
+    git_hook.add_argument("hook", choices=("pre-commit", "pre-push"))
+    git_hook.add_argument("rest", nargs="*", help=argparse.SUPPRESS)  # git passes remote name/url
+    git_hook.set_defaults(func=_cmd_git_hook)
+
+    git_hooks = commands.add_parser("git-hooks", help="install/uninstall the git backstop hooks")
+    gh_cmds = git_hooks.add_subparsers(dest="git_hooks_command", metavar="<action>", required=True)
+    gh_install = gh_cmds.add_parser("install", help="write .git/hooks/pre-commit and pre-push")
+    gh_install.add_argument("--force", action="store_true", help="replace foreign hooks")
+    gh_install.add_argument("--shared", action="store_true", help="call `chatur` from PATH")
+    gh_uninstall = gh_cmds.add_parser("uninstall", help="remove Chatur-managed hooks only")
+    for sub in (gh_install, gh_uninstall):
+        sub.add_argument("--root", default=".", help="repository (default: current directory)")
+        sub.set_defaults(func=_cmd_git_hooks)
+
+    ci = commands.add_parser("ci-check", help="CI backstop: governance, gates, secrets, process")
+    ci.add_argument("--root", default=".", help="repository (default: current directory)")
+    ci.add_argument("--base", help="base ref/sha for diff checks (e.g. PR base)")
+    ci.add_argument("--head", default="HEAD", help="head ref (default HEAD)")
+    ci.add_argument("--before", help="previous head on push, to detect history rewrites")
+    ci.set_defaults(func=_cmd_ci_check)
+
+    ci_cmd = commands.add_parser("ci", help="CI integration helpers")
+    ci_cmds = ci_cmd.add_subparsers(dest="ci_command", metavar="<action>", required=True)
+    ci_install = ci_cmds.add_parser("install", help="write a CI workflow that runs ci-check")
+    ci_install.add_argument("provider", choices=("github",))
+    ci_install.add_argument("--root", default=".", help="repository (default: current directory)")
+    ci_install.add_argument("--force", action="store_true", help="overwrite an existing workflow")
+    ci_install.set_defaults(func=_cmd_ci_install)
 
     prims = commands.add_parser(
         "primitives", help="install agents/commands/skills/rules without APM (ADR-0028)"

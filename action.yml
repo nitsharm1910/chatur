@@ -1,0 +1,40 @@
+# Reusable GitHub Action: Chatur governance backstop (ADR-0030).
+# Usage:  - uses: nitsharm1910/chatur@v<version>   (after actions/checkout with fetch-depth: 0)
+name: Chatur check
+description: Chatur backstop: policy validity, audit chain, gate approvals and staleness, secrets, process rules, history rewrites.
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  base:
+    description: Base commit/ref for diff-based checks (PR base sha, or the previous head on push).
+    required: false
+    default: ""
+  before:
+    description: Previous head on push, used to detect force pushes (github.event.before).
+    required: false
+    default: ""
+  python-version:
+    description: Python used to run Chatur.
+    required: false
+    default: "3.12"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install Chatur
+      shell: bash
+      env:
+        CHATUR_SRC: ${{ github.action_path }}
+      run: python -m pip install --quiet "$CHATUR_SRC"
+    - name: Run chatur ci-check
+      shell: bash
+      env:
+        # inputs go through env vars, never interpolated into the script (no expression injection)
+        CHATUR_BASE: ${{ inputs.base }}
+        CHATUR_BEFORE: ${{ inputs.before }}
+      run: chatur ci-check --root "$GITHUB_WORKSPACE" --base "$CHATUR_BASE" --before "$CHATUR_BEFORE"

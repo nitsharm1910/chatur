@@ -99,6 +99,12 @@ class InitError(ValueError):
     pass
 
 
+def placeholder_readme(folder: str) -> str | None:
+    """The README `chatur init` writes in docs/<folder>/ (None if not a Chatur phase folder)."""
+    purpose = DOC_FOLDERS.get(folder)
+    return f"# {folder.title()}\n\n{purpose}\n" if purpose else None
+
+
 def template_text(name: str) -> str:
     return resources.files("chatur").joinpath("templates", name).read_text(encoding="utf-8")
 
@@ -211,8 +217,8 @@ def init_project(
         _write_new(root, config_rel, config, result)
     commit_audit = _configured_commit(root / config_rel, default=commit_audit)
     _write_new(root, ".chatur/policy.local.toml", LOCAL_POLICY_TEMPLATE, result)
-    for folder, purpose in DOC_FOLDERS.items():
-        _write_new(root, f"docs/{folder}/README.md", f"# {folder.title()}\n\n{purpose}\n", result)
+    for folder in DOC_FOLDERS:
+        _write_new(root, f"docs/{folder}/README.md", placeholder_readme(folder) or "", result)
     _write_new(root, "docs/decisions/0000-template.md", packaged_template(), result)
     for name in TEMPLATES:
         _write_new(root, f".chatur/templates/{name}", template_text(name), result)

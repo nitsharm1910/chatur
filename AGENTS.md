@@ -18,6 +18,8 @@ Read before changing anything:
 | Path | Purpose |
 |------|---------|
 | `.apm/` | **Distributable primitives** — what target projects receive: `agents/` (9 `chatur-*`), `prompts/` (`/chatur-*` commands), `skills/` (with `assets/` templates), `instructions/`, `hooks/` (ADR-0027) |
+| `action.yml` | Reusable GitHub Action running `chatur ci-check` (ADR-0030) |
+| `.pre-commit-hooks.yaml` | pre-commit framework hooks `chatur-pre-commit` / `chatur-pre-push` (ADR-0030) |
 | `scripts/` | Dev tools (`sync_primitives.py` copies templates into skill assets; tests enforce sync) |
 | `src/chatur/` | Python core: event normalization, guard engine, audit log, gates, ADR tooling, CLI |
 | `src/chatur/adapters/` | One module per assistant; translates native hook payloads ⇄ `ChaturEvent` |

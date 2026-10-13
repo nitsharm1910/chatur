@@ -1,0 +1,24 @@
+# Chatur backstop for the pre-commit framework (ADR-0030).
+# In a project's .pre-commit-config.yaml:
+#   - repo: https://github.com/nitsharm1910/chatur
+#     rev: v<version>
+#     hooks:
+#       - id: chatur-pre-commit
+#       - id: chatur-pre-push
+- id: chatur-pre-commit
+  name: chatur backstop (pre-commit)
+  description: Blocks agent-session commits, secrets, tampered governance, and profile process gaps.
+  entry: chatur git-hook pre-commit
+  language: python
+  pass_filenames: false
+  always_run: true
+  stages: [pre-commit]
+
+- id: chatur-pre-push
+  name: chatur backstop (pre-push)
+  description: Blocks agent-session pushes, secrets in pushed commits, and tampered governance.
+  entry: chatur git-hook pre-push
+  language: python
+  pass_filenames: false
+  always_run: true
+  stages: [pre-push]
