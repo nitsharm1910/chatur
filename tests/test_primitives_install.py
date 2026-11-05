@@ -67,6 +67,19 @@ def test_rule_conversion():
     assert out.startswith('---\ndescription: x\npaths: ["src/**", "tests/**"]\n---\n')
 
 
+@pytest.mark.parametrize("apply_to", ['"**"', "**", '"**, **"'])
+def test_rule_for_every_path_stays_unscoped(apply_to):
+    # ADR-0034: compaction summarises path-scoped rules away; unscoped rules are re-injected.
+    out = cc.rule_from_instructions(f"---\ndescription: x\napplyTo: {apply_to}\n---\nbody\n")
+    assert out == "---\ndescription: x\n---\nbody\n"
+
+
+def test_installed_core_rule_has_no_paths(tmp_path):
+    install(tmp_path)
+    text = (tmp_path / ".claude" / "rules" / "chatur-sdlc.md").read_text(encoding="utf-8")
+    assert "paths" not in parse_front_matter(text)
+
+
 def test_reinstall_is_idempotent(tmp_path):
     first = install(tmp_path)
     second = install(tmp_path)

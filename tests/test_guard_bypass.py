@@ -127,6 +127,63 @@ def test_no_false_deny(command):
     assert verdict.decision is Decision.ASK, f"{command!r} -> {verdict.decision}: {verdict.reason}"
 
 
+READ_ONLY_TAG_AND_REFLOG = [  # ADR-0034
+    "git tag",
+    "git tag --list",
+    "git tag -l",
+    "git tag -l 'v1.*'",
+    "git tag --list v1 v2",
+    "git tag -n5",
+    "git tag --sort=-creatordate",
+    "git tag --contains HEAD",
+    "git tag --merged main --sort=-creatordate",
+    "git tag --points-at HEAD",
+    "git -C /repo tag --list",
+    "git reflog",
+    "git reflog show -5",
+    "git reflog exists HEAD",
+]
+
+
+@pytest.mark.parametrize("command", READ_ONLY_TAG_AND_REFLOG)
+def test_read_only_tag_and_reflog_need_approval(command):
+    verdict = check(shell_event(command))
+    assert verdict.decision is Decision.ASK, f"{command!r} -> {verdict.decision}: {verdict.reason}"
+    assert "git.no-history-rewrite" not in hit_ids(verdict)
+
+
+WRITE_TAG_AND_REFLOG = [  # ADR-0034
+    "git tag v1",
+    "git tag -a v1 -m release",
+    "git tag --annotate v1 -m release",
+    "git tag -d v1",
+    "git tag --delete v1",
+    "git tag -f v1",
+    "git tag -s v1",
+    "git tag -am release v1",
+    "git tag v1 HEAD~1",
+    "git tag -l -d v1",
+    "git tag --list -d v1",
+    "git tag --contains -d v1",
+    "git tag --list && git tag v2",
+    "git -C /repo tag v1",
+    "GIT TAG v1",
+    'sh -c "git tag v1"',
+    "pwsh -c 'git tag -d v1'",
+    "python -c \"import os; os.system('git tag v1')\"",
+    "git reflog expire --all",
+    "git reflog delete HEAD@{1}",
+    "git reflog drop",
+]
+
+
+@pytest.mark.parametrize("command", WRITE_TAG_AND_REFLOG)
+def test_writing_tag_and_reflog_denied(command):
+    verdict = check(shell_event(command))
+    assert verdict.decision is Decision.DENY, f"{command!r} -> {verdict.decision}: {verdict.reason}"
+    assert "git.no-history-rewrite" in hit_ids(verdict)
+
+
 UNRESOLVABLE = [
     "G=git; $G commit -m x",
     "$(echo git) push",

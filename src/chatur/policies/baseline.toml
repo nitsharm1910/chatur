@@ -29,10 +29,15 @@ baseline = true
 critical = true
 layers = ["hook", "ci"]
 applies_to = { tool_category = ["shell"] }
-match.git_subcommands = ["rebase", "filter-branch", "filter-repo", "tag", "clean", "restore", "reflog"]
+match.git_subcommands = ["rebase", "filter-branch", "filter-repo", "clean", "restore"]
 match.git_patterns = [
   'reset\s+.*--hard', 'branch\s+.*-(d|D|m|M)\b', 'push\s+.*--force', 'stash\s+(drop|clear)',
   'checkout\s+.*--\s', 'gc\s+.*--prune',
+  # ADR-0034: reflog only reads unless expire/delete/drop.
+  '^reflog\s+(expire|delete|drop)\b',
+  # ADR-0034: deny `git tag` unless every argument matches a read-only shape: (1) list/format flags only,
+  # or (2) the same flags with -l/--list and name patterns. Unrecognised forms stay denied.
+  '^tag(?=\s|$)(?!(?:\s+(?:-l|--list|-n\d*|-i|--ignore-case|--column|--no-column|--sort=\S+|--format=\S+|--(?:no-)?contains(?:\s+[^-\s]\S*)?|--(?:no-)?merged(?:\s+[^-\s]\S*)?|--points-at(?:\s+[^-\s]\S*)?))*\s*$)(?!(?:\s+(?:-n\d*|-i|--ignore-case|--column|--no-column|--sort=\S+|--format=\S+))*\s+(?:-l|--list)(?:\s+(?:-n\d*|-i|--ignore-case|--column|--no-column|--sort=\S+|--format=\S+))*(?:\s+[^-\s]\S*)+\s*$)',
 ]
 verdict = "deny"
 reason = "History/ref-rewriting git operations are reserved for humans."

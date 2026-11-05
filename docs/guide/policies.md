@@ -15,7 +15,7 @@ answer a prompt (`dontAsk` mode, CI), **ask becomes deny**.
 ## The baseline (every profile, can't be weakened)
 | Rule | Verdict | What it stops |
 |---|---|---|
-| `git.no-commit-push`, `git.no-history-rewrite` | deny | commit, push, merge, rebase, reset --hard, tag, branch -D, clean… (including via `sh -c`, encoded PowerShell, wrappers) |
+| `git.no-commit-push`, `git.no-history-rewrite` | deny | commit, push, merge, rebase, reset --hard, creating or deleting tags, branch -D, clean… (including via `sh -c`, encoded PowerShell, wrappers). Listing tags and reading the reflog only ask |
 | `git.remote-tools`, `git.remote-cli` | deny | MCP tools and `gh`/`glab`/`hub` commands that write to the remote |
 | `gate.state-protected`, `gate.no-agent-approval` | deny | agents touching gate state/audit, or running `chatur gate approve` |
 | `harness.read-only` | deny | agents editing `.chatur/**`, `.claude/settings*.json`, `chatur-*` agents/commands/skills/rules |

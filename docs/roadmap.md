@@ -63,6 +63,10 @@ Legend: ✅ done · 🔄 in progress · ⏳ planned
 - ✅ 6.5 Clean-venv wheel smoke test of the full quickstart (found and fixed a CRLF/LF gate-digest bug)
 - ⏳ 6.6 Maintainer: [release checklist](releases/checklist.md) (ADR-0028, self config, PyPI/GitHub setup, tag)
 
+## 0.10.0 (Proposed, order chosen by the maintainer)
+- ADR-0033: checkpoints, project notes, output trimming, cache guardrails, opt-in cost settings
+- ADR-0032: project modes, brownfield duplication, baseline gate, per-change gates, tracks (same or next release)
+
 ## 1.0.0
 - Phase 4 Copilot adapter; ADR-0026 mode verification; interface freeze
 

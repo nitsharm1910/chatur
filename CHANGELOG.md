@@ -7,7 +7,7 @@ every such change is recorded in an ADR and listed under **Changed/Breaking** (A
 
 ## [Unreleased]
 
-## [0.9.0] - 2026-10-12
+## [0.9.0] - 2026-11-04
 
 First public release. Full support for **Claude Code**; GitHub Copilot follows in 1.0.
 
@@ -37,6 +37,10 @@ First public release. Full support for **Claude Code**; GitHub Copilot follows i
 - Commands hidden inside scripts or repo-level git aliases can't be resolved statically. They're `ask`
   in-session, and the git/CI backstop blocks the outcome.
 - `acceptEdits` and `bypassPermissions` behaviour with hook `ask` is not yet verified (ADR-0026).
+- If Chatur isn't running, native deny rules no longer stop a plain `git tag <name>`; the tag stays local because
+  `git push` is still denied (ADR-0034).
+- Through APM, Chatur's core rule may be installed path-scoped and fade after compaction. `chatur primitives install`
+  isn't affected (ADR-0034).
 
 [Unreleased]: https://github.com/nitsharm1910/chatur/compare/v0.9.0...HEAD
 [0.9.0]: https://github.com/nitsharm1910/chatur/releases/tag/v0.9.0

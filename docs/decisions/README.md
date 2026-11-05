@@ -33,6 +33,9 @@
 | [0029](0029-harness-boundary.md) | Harness boundary: Chatur files read-only for agents, tooling gitignored, templates → `.chatur/templates/` | Accepted |
 | [0030](0030-git-and-ci-backstop.md) | Git and CI backstop: pre-commit, pre-push, ci-check, GitHub Action | Accepted |
 | [0031](0031-release-0-9-and-versioning.md) | Release 0.9.0 (Claude Code), 0.x versioning, trusted publishing, relaxed self-governance | Accepted |
+| [0032](0032-project-modes-changes-and-tracks.md) | Project modes, brownfield duplication, baseline gate, per-change gates, tracks | **Proposed** |
+| [0033](0033-context-memory-checkpoints-and-cost.md) | Context, memory, checkpoints, output trimming, cache protection | **Proposed** |
+| [0034](0034-unscoped-core-rule-and-read-only-git.md) | Unscoped core rule; read-only `git tag`/`reflog` allowed (amends 0014, 0025, 0028) | Accepted |
 
 List from the CLI: `chatur adr list` · create: `chatur adr new "<title>"`.
 

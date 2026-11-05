@@ -19,3 +19,14 @@ apm_modules/
 .DS_Store
 Thumbs.db
 .claude/settings.local.json
+# >>> chatur (managed by `chatur init`) >>>
+.claude/agents/chatur-*
+.claude/commands/chatur-*
+.claude/skills/chatur-*/
+.claude/rules/chatur-*
+.claude/.chatur-primitives.json
+.claude/settings.local.json
+.chatur/templates/
+.chatur/audit/.lock
+.chatur/state.json.tmp
+# <<< chatur <<<

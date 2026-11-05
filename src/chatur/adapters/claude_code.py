@@ -218,7 +218,14 @@ _DENY_COMMANDS = (
     "git merge",
     "git rebase",
     "git reset --hard",
-    "git tag",
+    "git tag -a",  # write flags only: native rules can't allow `git tag --list` (ADR-0034)
+    "git tag --annotate",
+    "git tag -d",
+    "git tag --delete",
+    "git tag -f",
+    "git tag --force",
+    "git tag -s",
+    "git tag --sign",
     "git cherry-pick",
     "git revert",
     "git clean",
@@ -383,11 +390,17 @@ def command_from_prompt(text: str) -> str:
 
 
 def rule_from_instructions(text: str) -> str:
-    """APM instructions -> Claude rule: applyTo globs become a `paths:` list."""
+    """APM instructions -> Claude rule: applyTo globs become a `paths:` list, except `**`.
+
+    A rule for every path stays unscoped: compaction summarises path-scoped rules away, while
+    unscoped rules are re-injected from disk (ADR-0034)."""
     fm, body = _split_front(text)
     apply_to = (_scalar(fm, "applyTo") or "**").strip("'\"")
-    paths = ", ".join(json.dumps(p.strip()) for p in apply_to.split(",") if p.strip())
+    patterns = [p.strip() for p in apply_to.split(",") if p.strip()]
     description = _scalar(fm, "description") or ""
+    if all(p == "**" for p in patterns):
+        return f"---\ndescription: {description}\n---\n{body}"
+    paths = ", ".join(json.dumps(p) for p in patterns)
     return f"---\ndescription: {description}\npaths: [{paths}]\n---\n{body}"
 
 

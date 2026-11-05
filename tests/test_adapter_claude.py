@@ -281,6 +281,12 @@ def test_uninstall_missing_file(tmp_path):
     assert cc.uninstall(tmp_path, local=True) is None
 
 
+def test_native_tag_rules_only_cover_write_flags():
+    # ADR-0034: a broad `git tag` rule would also block read-only `git tag --list`.
+    assert "Bash(git tag *)" not in cc.NATIVE_DENY and "Bash(git tag)" not in cc.NATIVE_DENY
+    assert "Bash(git tag -d *)" in cc.NATIVE_DENY and "PowerShell(git tag -a *)" in cc.NATIVE_DENY
+
+
 def test_native_deny_covers_critical_commands():
     for rule in (
         "Bash(git commit *)",
