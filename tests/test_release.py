@@ -56,3 +56,60 @@ def test_guide_internal_links_resolve():
         for link in re.findall(r"\]\(([^)#]+\.md)\)", page.read_text(encoding="utf-8")):
             if not link.startswith("http"):
                 assert (page.parent / link).is_file(), f"{page.name} links to missing {link}"
+
+
+_PLAIN_VALUE = re.compile(r"^\s*(?:-\s+)?[\w.-]+:[ \t]+(?P<value>[^\"'|>\[{&*!#%@`\s$-].*)$")
+
+
+def _unquoted_colon_problems(path: Path) -> list[str]:
+    """Plain YAML scalars containing ': ' (a second mapping) on `key: value` lines."""
+    problems = []
+    in_block = False
+    block_indent = 0
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        indent = len(line) - len(line.lstrip())
+        if in_block:
+            if line.strip() and indent <= block_indent:
+                in_block = False
+            else:
+                continue  # inside a `run: |` style block scalar
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if re.search(r":[ \t]+[|>][+-]?\d*[ \t]*$", line):
+            in_block, block_indent = True, indent
+            continue
+        match = _PLAIN_VALUE.match(line)
+        if match and re.search(r": |:$", match.group("value").split(" #")[0]):
+            problems.append(f"{path.name}:{number}: {line.strip()[:80]}")
+    return problems
+
+
+def test_yaml_files_have_no_unquoted_colon_values():
+    # Regression (2026-11-05): `description: Chatur backstop: policy ...` made GitHub reject
+    # action.yml ("Mapping values are not allowed in this context"). The runtime is stdlib-only,
+    # so there is no YAML parser here; this lints that exact mistake.
+    files = [
+        REPO / "action.yml",
+        REPO / ".pre-commit-hooks.yaml",
+        REPO / "apm.yml",
+        *sorted((REPO / ".github" / "workflows").glob("*.yml")),
+    ]
+    problems = [p for path in files for p in _unquoted_colon_problems(path)]
+    assert not problems, "quote these values (they contain ': '):\n" + "\n".join(problems)
+
+
+def test_yaml_lint_catches_the_reported_mistake(tmp_path):
+    bad = tmp_path / "bad.yml"
+    bad.write_text("name: x\ndescription: Chatur backstop: policy validity\n", encoding="utf-8")
+    assert _unquoted_colon_problems(bad) == [
+        "bad.yml:2: description: Chatur backstop: policy validity"
+    ]
+    good = tmp_path / "good.yml"
+    good.write_text(
+        'description: "Chatur backstop: policy validity"\n'
+        "steps:\n  - run: |\n      echo a: b\n  - name: Check tag: matches\n",
+        encoding="utf-8",
+    )
+    assert _unquoted_colon_problems(good) == [
+        "good.yml:5: - name: Check tag: matches"
+    ]  # block scalar skipped, real mistake still found

@@ -1,7 +1,7 @@
 # Reusable GitHub Action: Chatur governance backstop (ADR-0030).
 # Usage:  - uses: nitsharm1910/chatur@v<version>   (after actions/checkout with fetch-depth: 0)
 name: Chatur check
-description: Chatur backstop: policy validity, audit chain, gate approvals and staleness, secrets, process rules, history rewrites.
+description: "Chatur backstop: policy validity, audit chain, gate approvals and staleness, secrets, process rules, history rewrites."
 branding:
   icon: shield
   color: blue
